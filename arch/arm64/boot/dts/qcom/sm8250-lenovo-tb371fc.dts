@@ -1,0 +1,1118 @@
+#include <dt-bindings/phy/phy.h>
+
+#include "sm8250-lenovo-tb371fc-base.dts"
+
+/*
+ * This file contains changes relevant to described in
+ * original DTS overlay from "overlay" partition,
+ * while the DTS from "boot.img" is described in
+ * included "base" above.
+ */
+
+/*
+ * START: ----------------------- Battery & Charger ----------------------------
+ *
+ * Involved ICs:
+ * - Qualcomm PM8150B -- Main PMIC
+ * - Qualcomm SMB1396 -- Li+ Battery Charger
+ * - Mitsumi MM8013 -- Fuel gauge IC. Measures  temperature,  voltage  and  current
+ *
+ * # Charging
+ *
+ * Original DTS from 4.19 kernel adjusts `pm8150b_charger` node
+ * that have compatible string `qcom,qpnp-smb5`.
+ *
+ * Meanwhile, DTS from 4.19 kernel brings `smb1396`
+ * on I2C bus `qupv3_se16_i2c`, while disables originally defined
+ * `smb1390` related nodes in `smb1390.dtsi` and included
+ * through `kona-qrd.dtsi`.
+ *
+ * # Battery Fuel Gauge
+ *
+ * Additionally, DTS from 4.19 kernel disables `pm8150b_fg`
+ * by setting `status = "disabled"`, while brings `mm8013_battery` node
+ * on `qupv3_se3_i2c` I2C bus, with compatible string "mitsumi,mm8013c06".
+ *
+ * # Original descriptions fron overlay
+ *
+ * The full pm8150b charger description from overlay of 4.19
+ * (note, that it doesn't contain non overriden values) is below.
+ *
+ * ```
+ * &pm8150b_charger {
+ * 	device_type = "battery";
+ * 	qcom,thermal-mitigation = <4000000
+ * 				   3900000 3800000 3600000 3200000
+ * 				   2800000 2400000 2000000
+ * 				   1800000 1600000 1400000 1200000 1000000
+ * 				   800000 600000 500000>;
+ *
+ * 	/delete-property/ qcom,auto-recharge-soc;
+ * 	qcom,auto-recharge-vbat-mv = <4380>;
+ *
+ * 	io-channels = <&pm8150b_vadc ADC_MID_CHG_DIV6>,
+ * 		      <&pm8150b_vadc ADC_USB_IN_I>,
+ * 		      <&pm8150b_vadc ADC_AMUX_THM3_PU2>,
+ * 		      <&pm8150b_vadc ADC_SBUx>,
+ * 		      <&pm8150b_vadc ADC_VPH_PWR>,
+ * 		      <&pm8150b_vadc ADC_CHG_TEMP>;
+ *
+ * 	io-channel-names = "mid_voltage",
+ * 			   "usb_in_current",
+ * 			   "conn_temp",
+ * 			   "sbux_res",
+ * 			   "vph_voltage",
+ * 			   "chg_temp";
+ *
+ * 	/delete-property/ qcom,sw-jeita-enable;
+ * 	/delete-property/ qcom,suspend-input-on-debug-batt;
+ * 	/delete-property/ qcom,fcc-stepping-enable;
+ *
+ * 	qcom,pd-thermal-mitigation = <6000000
+ * 				      5450000 5300000 5000000
+ * 				      4600000 4200000
+ * 				      3800000 3400000 3200000 3000000
+ * 				      2800000 2600000 2400000 2400000 2200000 2100000>;
+ *
+ * 	qcom,chg-control-gpio = <&pm8150_gpios 10 GPIO_ACTIVE_HIGH>;
+ *
+ * 	lenovo,jeita_enable = <1>;
+ *
+ * 	qcom,fv-max-uv = <4490000>;
+ * 	qcom,fcc-max-ua = <6000000>;
+ *
+ * 	qcom,max-voltage-uv = <4490000>;
+ *
+ * 	qcom,fastchg-current-ma = <6000>;
+ *
+ * 	qcom,jeita-fcc-ranges = <0 150 3000000>,
+ * 				<150 450 3000000>,
+ * 				<450 500 3000000>;
+ *
+ * 	qcom,jeita-fv-ranges = <0 500 4450000>;
+ *
+ * 	qcom,otg-cl-ua = <1800000>;
+ * 	qcom,hvdcp2-max-icl-ua = <2000000>;
+ * };
+ *
+ * ```
+ *
+ * The full SBP1396 from original overlay
+ *
+ * ```
+ * &qupv3_se16_i2c {
+ * 	#address-cells = <1>;
+ * 	#size-cells = <0>;
+ * 	status = "ok";
+ *
+ * 	smb1396: qcom,smb1396@34 {
+ * 		compatible = "qcom,i2c-pmic";
+ * 		reg = <0x34>;
+ * 		#address-cells = <1>;
+ * 		#size-cells = <0>;
+ * 		interrupt-parent = <&spmi_bus>;
+ * 		interrupts = <0x2 0xc5 0x0 IRQ_TYPE_LEVEL_LOW>;
+ * 		interrupt_names = "smb1396";
+ * 		interrupt-controller;
+ * 		#interrupt-cells = <3>;
+ * 		qcom,periph-map = <0x6 0x26 0x27>;
+ * 		status = "ok";
+ * 		pinctrl-names = "default";
+ * 		qcom,enable-toggle-stat;
+ * 		pinctrl-0 = <&smb_stat_default>;
+ *
+ * 		smb1396_revid: qcom,revid {
+ * 			compatible = "qcom,qpnp-revid";
+ * 			reg = <0x100>;
+ * 		};
+ *
+ * 		smb1396_div2_cp_master: qcom,div2_cp {
+ * 			compatible = "qcom,smb1396-div2-cp-master";
+ * 			qcom,pmic-revid = <&smb1396_revid>;
+ * 			qcom,parallel-input-mode = <1>;
+ * 			qcom,parallel-output-mode = <2>;
+ * 			qcom,div2-cp-min-ilim-ua = <750000>;
+ * 			io-channels = <&pm8150b_vadc ADC_AMUX_THM2>;
+ * 			io-channel-names = "die_temp";
+ * 			interrupts = <0x26 0x01 IRQ_TYPE_EDGE_RISING>,
+ * 					 <0x26 0x03 IRQ_TYPE_EDGE_RISING>,
+ * 					 <0x26 0x05 IRQ_TYPE_EDGE_RISING>,
+ * 					 <0x26 0x07 IRQ_TYPE_EDGE_RISING>,
+ * 					 <0x27 0x05 IRQ_TYPE_EDGE_RISING>,
+ * 					 <0x27 0x06 IRQ_TYPE_EDGE_RISING>,
+ * 					 <0x27 0x07 IRQ_TYPE_EDGE_RISING>;
+ * 			interrupt-names = "temp-shdwn",
+ * 					  "div2-irev",
+ * 					  "usbin-uv",
+ * 					  "usbin-ov",
+ * 					  "div2-ilim",
+ * 					  "div2-win-uv",
+ * 					  "div2-win-ov";
+ * 			status = "ok";
+ * 		};
+ * 	};
+ * };
+ * ```
+ *
+ * # Physical battery
+ *
+ * Model: L21D2P31
+ * Nominal Voltage: 3.87VDC
+ * Limited Charge Voltage: 4.45VDC
+ * Rated Capacity: 10000mAh
+ * Typical Capacity: 10200mAh
+ *
+ * The battery pack contains two visible cells,
+ * but the label description likely about
+ * the pack, rather then the cell
+ */
+
+/ {
+	/*
+	 * Looking on Xiaomi Pipa description,
+	 * it contains two "simple-battery",
+	 * and two linked "fuel-gauge".
+	 *
+	 * But the original DTS from 4.19 kernel
+	 * contains only one "fuel-gauge" node
+	 * of Mitsumi MM8013.
+	 *
+	 * Does it mean here should be
+	 * one description for whole battery pack, and
+	 * one fuel gauge handling the whole pack?
+	 */
+	battery: battery {
+		compatible = "simple-battery";
+		voltage-min-design-microvolt = <3870000>; // Nominal voltage
+		voltage-max-design-microvolt = <4450000>; // Limited charge voltage
+		charge-full-design-microamp-hours = <10000000>; // Rated capacity
+	};
+};
+
+&i2c3 {
+	status = "okay";
+
+	fuel-gauge@55 {
+		compatible = "mitsumi,mm8013";
+		reg = <0x55>;
+		monitored-battery = <&battery>;
+	};
+};
+
+/*
+ * No relevant drivers for `pm8150b_charger` and `smb1396`
+ */
+
+/*
+ * END: ------------------------- Battery & Charger ----------------------------
+ */
+
+/*
+ * START: -------------------------- Display -----------------------------------
+ *
+ * ATTENTION: Original 4.19 DTS defines LCD supply twice,
+ *            - first time using PM8150L,
+ *            - second time using KTZ8866.
+ *            By simple DTS analysis, it's unclear,
+ *            which one actually drives LCD supply,
+ *            but more likely KTZ8866
+ *
+ * Involved ICs:
+ * - PM8150L
+ * - Novatek NT36532 -- Dual-MIPI DSI with DSC (Display Stream Compression)
+ * - Kinetic KTZ8866 -- High Efficiency 6-CH LED Backlight Driver
+ *
+ * Overview of the mobile hardware display architecture:
+ *
+ * [ MDSS (Mobile Display Subsystem Wrapper) ]
+ *   │
+ *   └── [ DPU / MDP (Processing Core) ] ── (Fetches framebuffers from RAM)
+ *          │
+ *          ├───► [ DSI Controller ] ──► [ DSI PHY ] ──► Internal Smartphone Screen
+ *          │
+ *          └───► [ DP Controller ]  ──► [ DP PHY ]  ──► External Monitor (USB-C DisplayPort)
+ *
+ * DPU / MDP (Display Processing Unit / Mobile Display Processor)
+ *
+ * DSI (Display Serial Interface)
+ * DP (DisplayPort)
+ *
+ *
+ * Let's identify related nodes from original 4.19 DTS overlay.
+ *
+ * # LCP panel regulators
+ *
+ * First, the following set disables AMOLED and enables LCDB.
+ *
+ * ```
+ * &pm8150a_amoled {
+ * 	status = "disabled";
+ * };
+ *
+ * &pm8150l_lcdb {
+ * 	status = "ok";
+ * };
+ *
+ * ```
+ *
+ * Looking for such original node definitions in `pm8150l.dtsi`,
+ * can be seen that they are nodes describing regulators,
+ * likely hardware capabilities of the PM8150L chip's
+ * Liquid Crystal Display Bias (LCDB) component
+ *
+ * ```
+ * qcom,pm8150l@5 {
+ * 	compatible ="qcom,spmi-pmic";
+ * 	<...>
+ *
+ * 	pm8150l_lcdb: qcom,lcdb@ec00 {
+ * 		compatible = "qcom,qpnp-lcdb-regulator";
+ * 		<...>
+ *
+ * 		lcdb_ldo_vreg: ldo {
+ * 			label = "ldo";
+ * 			regulator-name = "lcdb_ldo";
+ * 			regulator-min-microvolt = <4000000>;
+ * 			regulator-max-microvolt = <6000000>;
+ * 		};
+ *
+ * 		lcdb_ncp_vreg: ncp {
+ * 			label = "ncp";
+ * 			regulator-name = "lcdb_ncp";
+ * 			regulator-min-microvolt = <4000000>;
+ * 			regulator-max-microvolt = <6000000>;
+ * 		};
+ *
+ * 		lcdb_bst_vreg: bst {
+ * 			label = "bst";
+ * 			regulator-name = "lcdb_bst";
+ * 			regulator-min-microvolt = <4700000>;
+ * 			regulator-max-microvolt = <6275000>;
+ * 		};
+ * 	};
+ *
+ * 	pm8150a_amoled: qcom,amoled {
+ * 		compatible = "qcom,qpnp-amoled-regulator";
+ * 		<...>
+ *
+ * 		oledb_vreg: oledb@e000 {
+ * 			<...>
+ * 			regulator-name = "oledb";
+ * 			<...>
+ * 		};
+ *
+ * 		ab_vreg: ab@de00 {
+ * 			<...>
+ * 			regulator-name = "ab";
+ * 			<...>
+ * 		};
+ *
+ * 		ibb_vreg: ibb@dc00 {
+ * 			<...>
+ * 			regulator-name = "ibb";
+ * 			<...>
+ * 		};
+ * 	};
+ * };
+ * ```
+ *
+ * The nodelabel `pm8150l_lcdb` transient through
+ * - `pm8150l.dtsi`
+ * - `kona-pmic-overlay.dtsi`
+ * - `kona-qrd.dtsi`
+ *
+ * While it is not modified, the volages should be caring.
+ * So, porting regulators should be noted following summary:
+ *
+ * Unused:
+ * - `oledb_vreg`
+ * - `ab_vreg`
+ * - `ibb_vreg`
+ *
+ * Used:
+ * - `lcdb_ldo_vreg`: 4V-6V
+ * - `lcdb_ncp_vreg`: 4V-6V
+ * - `lcdb_bst_vreg`: 4.7V-6.275V
+ *
+ * Note DSI usage:
+ *
+ * ```
+ * sde_dsi: qcom,dsi-display-primary {
+ *	<...>
+ *	lab-supply = <&lcdb_ldo_vreg>;
+ *	ibb-supply = <&lcdb_ncp_vreg>;
+ *	<...>
+ * };
+ *
+ *
+ * # DSI
+ *
+ * First, could noted suspicious detail.
+ * A DSI node `dsi_sharp_4k_dsc_video` redefines panel name:
+ *
+ * ```
+ * &dsi_sharp_4k_dsc_video {
+ * 	<...>
+ * 	qcom,mdss-dsi-panel-name = "nt36532 boe 3k video mode dsi panel";
+ * 	<...>
+ * }
+ * ```
+ *
+ * Meanwhile, in DTS is defined two nodes, one of them has
+ * the same panel name "nt36532 boe 3k video mode dsi panel":
+ *
+ * ```
+ * dsi_panel_spinel_boe_nt36532_dsc_3k_video: qcom,mdss_dsi_panel_spinel_boe_nt36532_dsc_3k_video {
+ * 	qcom,mdss-dsi-panel-name = "nt36532 boe 3k video mode dsi panel";
+ * 	<...>
+ * }
+ *
+ * dsi_panel_spinel_tianma_nt36532_dsc_3k_video: qcom,mdss_dsi_panel_spinel_tianma_nt36532_dsc_3k_video {
+ * 	qcom,mdss-dsi-panel-name = "nt36532 tianma 3k video mode dsi panel";
+ * 	<...>
+ * }
+ * ```
+ *
+ * May be guessed that `dsi_sharp_4k_dsc_video` renamed to `nt36532 boe 3k video mode dsi panel`
+ * was an experiment or something.
+ *
+ * Moreover, while all three nodes are used later:
+ *
+ * ```
+ * &sde_dsi {
+ *  	<...>
+ *
+ * 	qcom,dsi-default-panel = <&dsi_panel_spinel_boe_nt36532_dsc_3k_video>,
+ * 				 <&dsi_panel_spinel_tianma_nt36532_dsc_3k_video>,
+ * 				 <&dsi_sharp_4k_dsc_video>;
+ * };
+ * ```
+ *
+ * ...the kernel source code, at least as seen for related opensourced
+ * code for `tb-q706f` has likely will not use all that definitions,
+ * but only first.
+ *
+ * Driver analysis shows the steps of initialization.
+ *
+ * - The bootloader or kernel cmdline provides display selection parameters
+ *   such as `msm_drm.dsi_display0`, and `msm_drm.dsi_display1`.
+ * - These values are parsed and stored in the `boot_displays[]` array entries,
+ *   in each entry’s `boot_param field.
+ * - The driver parses each `boot_param` string to extract the display name.
+ * - If a valid name is found, it sets that entry’s `boot_disp_en` flag.
+ * - The driver then checks the current SDE/DSI node and determines
+ *   whether it is a `primary` or `secondary` display.
+ * - It maps that role to the corresponding index in `boot_displays[]`.
+ * - If `boot_disp_en` is set for that index, it resolves the DSI node’s MDP reference
+ *   via `qcom,mdp` and looks for the matching panel node using the name
+ *   extracted from the boot parameter.
+ * - If no boot-selected display was enabled for that slot,
+ *   it falls back to the default panel lookup using `qcom,dsi-default-panel`.
+ *
+ * The last steps falls back to looking up for `qcom,dsi-default-panel`
+ * though it always taking only the first index:
+ *
+ * ```
+ * panel_node = of_parse_phandle(node,
+ *               "qcom,dsi-default-panel", 0);
+ * ```
+ *
+ * So, falling back can only select `dsi_panel_spinel_boe_nt36532_dsc_3k_video`
+ *
+ * Meanwhile bootloader passes the next command line selecting `mdss_dsi_panel_spinel_tianma_nt36532_dsc_3k_video`
+ *
+ * ```
+ * [    0.000000] Kernel command line: <...> msm_drm.dsi_display0=qcom,mdss_dsi_panel_spinel_tianma_nt36532_dsc_3k_video:
+ * ```
+ *
+ * At summary:
+ * Other panels pretty likely may be skipped, then
+ * - main `mdss_dsi_panel_spinel_tianma_nt36532_dsc_3k_video`
+ * - fall back `dsi_panel_spinel_boe_nt36532_dsc_3k_video`
+ *
+ * # Panel Supply
+ *
+ * ## LCD panel <---------------------------------------------- This analysis about PM8150L which likely zobie nodes,
+ *                                                              while LCD supply most probably actualy driven by KTZ8866
+ *
+ * DTS nodes below are used at least in the functions like
+ * - `mdss_dsi_panel_power_on`
+ * - `mdss_dsi_panel_power_on`
+ *
+ * ```
+ * &dsi_panel_pwr_supply_lab_ibb {
+ * 	qcom,panel-supply-entry@1 {
+ * 		qcom,supply-min-voltage = <5800000>;
+ * 		qcom,supply-max-voltage = <5800000>;
+ * 	};
+ *
+ * 	qcom,panel-supply-entry@2 {
+ * 		qcom,supply-min-voltage = <5800000>;
+ * 		qcom,supply-max-voltage = <5800000>;
+ * 	};
+ * };
+ * ```
+ *
+ * Such node is used in both Tianma and Boe nodes:
+ *
+ * ```
+ * dsi_panel_spinel_boe_nt36532_dsc_3k_video: qcom,mdss_dsi_panel_spinel_boe_nt36532_dsc_3k_video {
+ * 	<...>
+ * 	qcom,panel-supply-entries = <&dsi_panel_pwr_supply_lab_ibb>;
+ * 	<...>
+ * };
+ *
+ * dsi_panel_spinel_tianma_nt36532_dsc_3k_video: qcom,mdss_dsi_panel_spinel_tianma_nt36532_dsc_3k_video {
+ * 	<...>
+ * 	qcom,panel-supply-entries = <&dsi_panel_pwr_supply_lab_ibb>;
+ * 	<...>
+ * };
+ * ```
+ *
+ * KConfig for regulators contains the next note:
+ *
+ * > LAB can be used as positive boost regulator and
+ * > IBB can be used as a negative boost regulator for LCD display panel.
+ *
+ * So, likely LCD panel supplied with pos and neg voltages both
+ * at 5.8V
+ *
+ * The final piece combining all supply nodes together:
+ *
+ * ```
+ * &sde_dsi {
+ * 	lab-supply = <&lcdb_ldo_vreg>;
+ * 	ibb-supply = <&lcdb_ncp_vreg>;
+ *
+ * 	/delete-property/ vddio-supply;
+ * 	/delete-property/ vdd-supply;
+ * 	/delete-property/ avdd-supply;
+ *
+ *	<...>
+ *
+ * 	qcom,dsi-default-panel = <&dsi_panel_spinel_boe_nt36532_dsc_3k_video>,
+ * 				 <&dsi_panel_spinel_tianma_nt36532_dsc_3k_video>,
+ * 				 <&dsi_sharp_4k_dsc_video>;
+ * };
+ * ```
+ *
+ * # LCP panel Supply Summary (AI Generated) <----------------- This analysis about PM8150L which likely zobie nodes,
+ *                                                              while LCD supply most probably actualy driven by KTZ8866
+ *
+ *  +-------------------------------------------------------------------------+
+ *  |                      PM8150L PMIC (Hardware Layer)                      |
+ *  |                                                                         |
+ *  |   [lcdb_ldo_vreg] (LAB)                 [lcdb_ncp_vreg] (IBB)           |
+ *  |   Allowed Range: 4.0V to 6.0V           Allowed Range: -4.0V to -6.0V   |
+ *  +-----------------------------------+-------------------------------------+
+ *                                      |
+ *     Passes HW Handles via Phandles   |  lab-supply = <&lcdb_ldo_vreg>;
+ *     (Links controller to PMIC)       |  ibb-supply = <&lcdb_ncp_vreg>;
+ *                                      v
+ *  +-------------------------------------------------------------------------+
+ *  |                     &sde_dsi (Controller Framework)                     |
+ *  +-----------------------------------+-------------------------------------+
+ *                                      |
+ *                                      | Activates selected panel at boot
+ *                                      v
+ *  +-------------------------------------------------------------------------+
+ *  |                        Selected Panel Configuration                     |
+ *  |                                                                         |
+ *  |                  [Tianma Panel Node]  OR  [BOE Panel Node]              |
+ *  |                                                                         |
+ *  |   Points to specific voltage target profiles via:                       |
+ *  |   `qcom,panel-supply-entries = <&dsi_panel_pwr_supply_lab_ibb>;`        |
+ *  +-----------------------------------+-------------------------------------+
+ *                                      |
+ *                                      | Evaluates requested parameters
+ *                                      v
+ *  +-------------------------------------------------------------------------+
+ *  |             &dsi_panel_pwr_supply_lab_ibb (The Voltage Request)         |
+ *  |                                                                         |
+ *  |   Contains exact targets requested by the active panel:                 |
+ *  |   - entry@1 (LAB Target): Min 5.8V / Max 5.8V                           |
+ *  |   - entry@2 (IBB Target): Min 5.8V / Max 5.8V                           |
+ *  +-----------------------------------+-------------------------------------+
+ *
+ * # DSI GPIO pins
+ *
+ * The original 4.19 DTS redefines the `pinctrl` values for DSI1
+ * effectively dropping `sde_dsi1_active` and `sde_dsi1_suspend`
+ * and leaving only the `sde_te1_active` and `sde_te1_suspend`.
+ *
+ * ```
+ * &sde_dsi1 {
+ * 	pinctrl-0 = <&sde_te1_active>;
+ * 	pinctrl-1 = <&sde_te1_suspend>;
+ * };
+ * ```
+ *
+ * For the 4.19 DTS here also drops `sde_dsi_active` and `sde_dsi_suspend`
+ * while adds `sde_bl_active` and `sde_bl_suspend`.
+ * The `bl` is related to backlight and defined here
+ * to be controlled simultaneously with LCD panel itself.
+ * See `bl` definition below what drives backlight
+ *
+ * The nodes `sde_bl_active` and `sde_bl_suspend`
+ * are defined in base.
+ *
+ * ```
+ * &sde_dsi {
+ *	<...>
+ * 	pinctrl-0 = <&sde_te_active &sde_bl_active>;
+ * 	pinctrl-1 = <&sde_te_suspend &sde_bl_suspend>;
+ *	<...>
+ * };
+ * ```
+ *
+ * ```
+ * pmx_sde_bl {
+ * 	sde_bl_active: sde_bl_active {
+ * 		config {
+ * 			pins = "gpio33", "gpio54", "gpio77", "gpio78";
+ * 			drive-strength = <2>;
+ * 			bias-pull-down;
+ * 			output-high;
+ * 		};
+ *
+ * 		mux {
+ * 			function = "gpio";
+ * 			pins = "gpio33", "gpio54", "gpio77", "gpio78";
+ * 		};
+ * 	};
+ *
+ * 	sde_bl_suspend: sde_bl_suspend {
+ * 		config {
+ * 			pins = "gpio33", "gpio54", "gpio77", "gpio78";
+ * 			drive-strength = <2>;
+ * 			bias-pull-down;
+ * 			output-low;
+ * 		};
+ *
+ * 		mux {
+ * 			pins = "gpio33", "gpio54", "gpio77", "gpio78";
+ * 			function = "gpio";
+ * 		};
+ * 	};
+ * };
+ * ```
+ *
+ * So, the most noting change is adding
+ * manipulation of the set pins of `sde_bl` for
+ * active / suspend states.
+ * They are "gpio33", "gpio54", "gpio77", "gpio78".
+ * Note, the bindings are controlling ktz8866 backlight:
+ * - gpio54 - drives HWEN pin
+ * - gpio77 - drives ENP that drives OUTP
+ * - gpio78 - drives ENN that drives OUTN
+ * - gpio33 - while the function not defined anywhere explicitely,
+ *            ktz8866 has exact 4 input pins where the fourth is
+ *            PWM, that is highly likely what is it
+ *
+ * While `gpio33` doesn't look like a PWM pin, the IC allows such usage:
+ *
+ * > When PWM dimming is enabled and a non-zero PWM duty cycle is detected,
+ * > the KTZ8866 multiplies the duty cycle with I2C brightness settings.
+ *
+ * So, without PWMing, likely will not be done any duty cycle multiplication
+ *
+ * Another change redefines the regulator gpio:
+ * ```
+ * &display_panel_avdd {
+ * 	gpio = <&tlmm 62 0x00>;
+ * 	/delete-property/ pinctrl-names;
+ * 	/delete-property/ pinctrl-0;
+ * };
+ * ```
+ *
+ * In the `kona-sde-display.dtsi` it defined as follows:
+ *
+ * ```
+ * display_panel_avdd: display_gpio_regulator@1 {
+ * 	compatible = "regulator-fixed";
+ * 	regulator-name = "display_panel_avdd";
+ * 	regulator-min-microvolt = <5500000>;
+ * 	regulator-max-microvolt = <5500000>;
+ * 	regulator-enable-ramp-delay = <233>;
+ * 	gpio = <&tlmm 61 0>; //	 <----------- redefined
+ * 	enable-active-high;
+ * 	regulator-boot-on;
+ * }
+ * ```
+ *
+ * So the controlling regulator GPIO pin should be set for `gpio62`.
+ *
+ * But the only usage of `display_panel_avdd` is in `sde_dsi1`
+ * that by analysis above expected to be unusing,
+ * since bootloader passes only `msm_drm.dsi_display0`
+ * and lack of `msm_drm.dsi_display1` that likely
+ * will effectively skip `dsi1`.
+ *
+ * However, `sde_dsi1` may be used somehow by dual DSI,
+ * so `display_panel_avdd` shoule be cared.       <-------- not found any similar in this DTS
+ *
+ * ```
+ * sde_dsi1: qcom,dsi-display-secondary {
+ * 	compatible = "qcom,dsi-display";
+ * 	label = "secondary";
+ * 	<...>
+ * 	avdd-supply = <&display_panel_avdd>;
+ * 	<...>
+ * };
+ * ```
+ *
+ * # Backlight
+ *
+ * Note of `hwen`:
+ *  > KTZ8866 has a logic input HWEN pin to enable/disable the device.
+ *  > When HWEN is set low, the device goes into
+ *  > shutdown mode, all I2C registers are reset to default,
+ *  > and the I2C interface is disabled.
+ *
+ * Note of `enp` and `enn`:
+ * The documentation describes both `enp` and `enn` as
+ * controlling ICs outputs of `outp` and `outn`:
+ *
+ * > ENP Enable pin for positive power (OUTP) <...>
+ * > ENN Enable pin for negative power (OUTN) <...>
+ * > OUTP LDO output pin of the positive power <...>
+ * > OUTN Charge pump output pin of the negative power <...>
+ *
+ * So both ENP and ENN effectively controls regulators OUTP and OUTN
+ *
+ * ATTENTION: Defining usage of OUTP and OUTN assume
+ *            that those outputs are driving LCD supply,
+ *            while by description above was seen
+ *            that LCD is supplied by PM8150L,
+ *            so PM8150L descriptions are likely zombie nodes
+ *
+ * Imlicitely, the DSI controls the fourth PWM pin,
+ * but likely in toggly mode only, since IC alows it:
+ *
+ * > When PWM dimming is enabled and a non-zero PWM duty cycle is detected,
+ * > the KTZ8866 multiplies the duty cycle with I2C brightness settings.
+ *
+ * &qupv3_se5_i2c {
+ * 	status = "ok";
+ *
+ * 	ktz8866@11 {
+ * 		compatible = "ktz,ktz8866a";
+ * 		status = "ok";
+ * 		reg = <0x11>;
+ * 		ktz8866,hwen-gpio = <&tlmm 54 GPIO_ACTIVE_HIGH>;
+ * 		ktz8866,enp-gpio = <&tlmm 77 GPIO_ACTIVE_HIGH>;
+ * 		ktz8866,enn-gpio = <&tlmm 78 GPIO_ACTIVE_HIGH>;
+ * 	};
+ * };
+ *
+ * &qupv3_se11_i2c {
+ * 	status = "ok";
+ *
+ * 	ktz8866@11 {
+ * 		compatible = "ktz,ktz8866b";
+ * 		status = "ok";
+ * 		reg = <0x11>;
+ * 		ktz8866,hwen-gpio = <&tlmm 54 GPIO_ACTIVE_HIGH>;
+ * 		ktz8866,enp-gpio = <&tlmm 77 GPIO_ACTIVE_HIGH>;
+ * 		ktz8866,enn-gpio = <&tlmm 78 GPIO_ACTIVE_HIGH>;
+ * 	};
+ * };
+ *
+ * # Summary of DSI GPIO pins end Backlight IC relation (AI generated)
+ *
+ *
+ * +---------------------------------------------------------------------------------------+
+ * |                     &sde_dsi Controller (State Management Layer)                      |
+ * |                                                                                       |
+ * |   [pinctrl-0] (Active)   --> Signals: GPIO 33, 54, 77, 78 ---> Set to OUTPUT-HIGH     |
+ * |   [pinctrl-1] (Suspend)  --> Signals: GPIO 33, 54, 77, 78 ---> Set to OUTPUT-LOW      |
+ * +-------------------+---------------+-------------------+-------------------------------+
+ *                     |               |                   |               |
+ *        GPIO 33      |       GPIO 54 |           GPIO 77 |       GPIO 78 |
+ *        (PWM Wave)   |       (HWEN)  |           (ENP)   |       (ENN)   |
+ *                     v               v                   v               v
+ * +---------------------------------------------------------------------------------------+
+ * |                        KTZ8866 Driver (Power & Logic Inputs)                          |
+ * |                                                                                       |
+ * |     [PWM]                 [HWEN]                  [ENP]               [ENN]           |
+ * |   Brightness           Global Chip Enable/      Positive Bias      Negative Bias      |
+ * |   Duty Cycle             I2C Wake State            Enable             Enable          |
+ * +-------+-----------------------+-----------------------+---------------+---------------+
+ *
+ */
+
+/*
+ * Implementation based on analysis above
+ */
+
+/*
+ * LCD panel regulators
+ *
+ * Let's start by finding relevant PM8150L regulator nodes,
+ * related to
+ * - `lcdb_ldo_vreg`: 4V-6V
+ * - `lcdb_ncp_vreg`: 4V-6V
+ * - `lcdb_bst_vreg`: 4.7V-6.275V
+ *
+ * The `himax,hx83112a.yaml` describes the following
+ *
+ * ```
+ *     dsi {
+ *         panel@0 {
+ *             <...>
+ *             vsn-supply = <&<...>_lcdb_ncp>;
+ *             vsp-supply = <&<...>_lcdb_ldo>;
+ *             <...>
+ *         };
+ *
+ * ```
+ * So, may be checked the nodes used by `vsn-supply` and `vsp-supply`.
+ * ...most of usage in codebase around defines that nodes
+ * - with nodelabels `reg_lcd_pos` and `reg_lcd_neg` sitting on I2C bus and using `tps65132`
+ * - with nodelabels `lab` and `ibb` sitting on SMPI bus and using `pmi8998`
+ * - with nodelabels `lcdb_dummy` sitting on root as dummy regulator
+ *
+ * Originally regulators were sitting on `pm8150l_lcdb: qcom,lcdb@ec00`
+ *
+ * Currently upstream kernel has no `lab-ibb` definitions sitting on `pm8150` PMIC.
+ * The upcoming structure may be guessed, but no relevant driver is here
+ */
+
+// &spmi_bus {	<------------------------------------------------------------ zombie nodes, drop them
+// 	// schema: qcom,spmi-pmic
+// 	pmic@5 {
+// 		// shema: qcom-labibb-regulator
+// 		labibb {
+// 			// Guessing how it could be named
+// 			// compatible = "qcom,pm8150l-lab-ibb";
+
+// 			// schema: regulator.yaml
+// 			lab: lab {
+// 				compatible = "regulator-fixed";
+// 				regulator-name = "lab_dummy";
+// 				regulator-min-microvolt = <5800000>; // Can not set original 4000000 for dummy;
+// 				regulator-max-microvolt = <5800000>; // Can not set original 6000000 for dummy;
+// 			};
+
+// 			// schema: regulator.yaml
+// 			ibb: ibb {
+// 				compatible = "regulator-fixed";
+// 				regulator-name = "ibb_dummy";
+// 				regulator-min-microvolt = <5800000>; // Can not set original 4000000 for dummy;
+// 				regulator-max-microvolt = <5800000>; // Can not set original 6000000 for dummy;
+// 			};
+// 		};
+// 	};
+// };
+
+/*
+ * Primary DSI Controller
+ */
+
+// Not enabled by default, enable it
+&mdss {
+	status = "okay";
+};
+
+&apps_rsc {
+	regulators-0 {
+		// mdss_dsi0 and mdss_dsi1 reference it
+		vreg_l9a_1p2: ldo9 {
+			regulator-name = "vreg_l9a_1p2";
+			regulator-min-microvolt = <1200000>;
+			regulator-max-microvolt = <1200000>;
+			regulator-initial-mode = <RPMH_REGULATOR_MODE_HPM>;
+		};
+
+		// mdss_dsi0_phy and mdss_dsi1_phy referense it
+		vreg_l5a_0p88: ldo5 {
+			regulator-name = "vreg_l5a_0p88";
+			regulator-min-microvolt = <880000>;
+			regulator-max-microvolt = <880000>;
+			regulator-initial-mode = <RPMH_REGULATOR_MODE_HPM>;
+		};
+	};
+};
+
+&soc {
+	// mdss_dsi0 and mdss_dsi1 reference it
+	refgen: regulator@88e7000 {
+		compatible = "qcom,sm8250-refgen-regulator";
+		reg = <0x0 0x088e7000 0x0 0x84>;
+		// Taken from `kona-regulators.dtsi` of 4.19
+		regulator-enable-ramp-delay = <5>;
+	};
+};
+
+&mdss_dsi0 {
+	// Original DTS from 4.19 defines
+	//
+	// ```
+	// vdda-1p2-supply = <&pm8150_l9>;
+	// ```
+	///
+	// ...which is `L9A: pm8150_l9: regulator-pm8150-l9`
+	// So, use the same
+	vdda-supply = <&vreg_l9a_1p2>;
+
+	// DTS beside for Xiaomi Elish use such DSI settings
+	// Looks like `tb371fc` are dual DSI too
+	// So, take them here
+	qcom,dual-dsi-mode;
+	qcom,sync-dual-dsi;
+	qcom,master-dsi;
+
+	status = "okay";
+
+	// It is defined in original 4.19
+	// but, not defined in `sm8250.dtsi`
+	// while `sm8350.dtsi` has defined it
+	//
+	// The referenced `refgen` node
+	// in original DTS sitting on `88e7000`
+	//
+	// ```
+	// refgen: refgen-regulator@88e7000 {
+	// 	compatible = "qcom,refgen-kona-regulator";
+	// 	reg = <0x88e7000 0x84>;
+	// 	<...>
+	// };
+	// ```
+	//
+	// The same address as defined in `sm8350.dtsi`
+	// So, likely such `refgen` may be used here too
+	refgen-supply = <&refgen>;
+
+	display_panel: panel@0 {
+		/*
+		 * Using the binding schema found in
+		 * https://lists.freedesktop.org/archives/freedreno/2025-October/041420.html
+		 */
+
+		// Some device descriptions skip setting it
+		// while adding additional overlay where this string
+		// vary for different displays like "boe" or "tianma"
+		// Hardcode only one until known "boe" actually exist
+		// on this device
+
+		// compatible = "novatek,nt36532"; // <----------------- stub node `compatible`, the driver likely not existing yet
+		status = "okay";                   //                    commented to avoid configuration picking up once the driver upstreamed
+
+		reg = <0>;
+
+		// vddio-supply = <&...>; // <----------------------- what actually it should be?
+		//                                                    AI suggests `vreg_s4a_1p8`, but gives lack of proofs
+
+		// Taken from "dsi-panel-spinel-tianma-nt36532-dsc-3k-video."dtsi
+		// qcom,platform-reset-gpio = <&tlmm 69 GPIO_ACTIVE_HIGH>;
+		reset-gpios = <&tlmm 69 GPIO_ACTIVE_HIGH>;
+
+		// While found binding shema doesn't suppose it
+		// keep to follow other "novatek,nt36xxx"
+		// binding schema definitions
+		// Likely will be added
+		backlight = <&backlight0>, <&backlight1>; // <----- does it support more then one?
+
+		// rotation = <90>; <------------------------------ check
+
+		// Though found binding shema doesn't suppose it yet,
+		// keep to track possible definition
+		vsp-supply = <&bl_vddpos_5p5>; // <---+---------------------- if LCD supply actually driven by ktz8866
+		vsn-supply = <&bl_vddneg_5p5>; // <---^                       then <&lab> and <&ibb> are replaced
+
+		/* Dual-DSI port mapping */
+		ports {
+			#address-cells = <1>;
+			#size-cells = <0>;
+
+			port@0 {
+				reg = <0>;
+
+				panel_in_0: endpoint {
+					remote-endpoint = <&mdss_dsi0_out>;
+				};
+			};
+
+			port@1 {
+				reg = <1>;
+
+				panel_in_1: endpoint {
+					remote-endpoint = <&mdss_dsi1_out>;
+				};
+			};
+		};
+	};
+};
+
+&mdss_dsi0_out {
+	remote-endpoint = <&panel_in_0>;
+	data-lanes = <0 1 2 3>; // Likely related to `phy-type` defined below
+};
+
+&mdss_dsi0_phy {
+	// 4.19 definitions:
+	//
+	// ```
+	// vdda-0p9-supply = <&pm8150_l5>;
+	// ```
+	//
+	// ```
+	// 	L5A: pm8150_l5: regulator-pm8150-l5 {
+	// 		<...>
+	// 		regulator-min-microvolt = <880000>;
+	// 		regulator-max-microvolt = <880000>;
+	// 		qcom,init-voltage = <880000>;
+	// 		<...>
+	// 	};
+	// ```
+	//
+	// So, use "vreg_l5a_0p88"
+
+	vdds-supply = <&vreg_l5a_0p88>;
+	phy-type = <PHY_TYPE_DPHY>; // <------------- guessing
+	status = "okay";
+};
+
+/*
+ * Secondary DSI Controller for Dual-DSI
+ */
+&mdss_dsi1 {
+	// Take supplies same as for `mdss_dsi1`
+	// Original 4.19 DTS has matching supplies too
+	vdda-supply = <&vreg_l9a_1p2>;
+	refgen-supply = <&refgen>;
+
+	// Take Dial-DSI setting from Xiaomi Elish
+	qcom,dual-dsi-mode;
+	qcom,sync-dual-dsi;
+	// Comment from Xialomi Elish
+	// DSI1 is slave, so use DSI0 clocks */
+	assigned-clock-parents = <&mdss_dsi0_phy 0>, <&mdss_dsi0_phy 1>;
+
+	status = "okay";
+};
+
+&mdss_dsi1_out {
+	// The same as in `mdss_dsi0_out`
+	remote-endpoint = <&panel_in_1>;
+	data-lanes = <0 1 2 3>; // Likely related to `phy-type` defined below
+};
+
+&mdss_dsi1_phy {
+	// The same as in `mdss_dsi0_phy`
+	vdds-supply = <&vreg_l5a_0p88>;
+	phy-type = <PHY_TYPE_DPHY>; // <------------- guessing
+	status = "okay";
+};
+
+/*
+ * Add ktz8866 OUTP and OUTN described as regulators
+ * and to attach as `vddpos-supply` and `vddneg-supply`
+ *
+ * Documentationd describes outputs having I2C controllable ranges
+ * - OUTP -- from 4V to 6.3V with default 5.5V
+ * - OUTN -- from 6.3V to -4V with default -5.4
+ *
+ * The naming is unified with pipa and elish
+ */
+/ {
+	bl_vddpos_5p5: bl-vddpos-regulator {
+		compatible = "regulator-fixed";
+		regulator-name = "bl_vddpos_5p5";
+		regulator-min-microvolt = <5500000>;
+		regulator-max-microvolt = <5500000>;
+		regulator-enable-ramp-delay = <233>; // <- elish and pipa define it like that. is it regulator characteristic?
+		gpio = <&tlmm 77 GPIO_ACTIVE_HIGH>;
+		enable-active-high;
+		regulator-boot-on;
+	};
+
+	bl_vddneg_5p5: bl-vddneg-regulator {
+		compatible = "regulator-fixed";
+		regulator-name = "bl_vddneg_5p5";
+		regulator-min-microvolt = <5500000>;
+		regulator-max-microvolt = <5500000>;
+		regulator-enable-ramp-delay = <233>; // <- elish and pipa define like that. is it regulator characteristic?
+		gpio = <&tlmm 78 GPIO_ACTIVE_HIGH>;
+		enable-active-high;
+		regulator-boot-on;
+	};
+};
+
+/*
+ * Backlight Drivers (Left & Right)
+ * Original DTS used qupv3_se5_i2c and qupv3_se11_i2c.
+ */
+&i2c5 {
+	status = "okay";
+
+	backlight0: backlight@11 {
+		compatible = "kinetic,ktz8866";
+		reg = <0x11>;
+
+		vddpos-supply = <&bl_vddpos_5p5>;
+		vddneg-supply = <&bl_vddneg_5p5>;
+
+		enable-gpios = <&tlmm 54 GPIO_ACTIVE_HIGH>;
+
+		// Original 4.19 driver likely do not set
+		// number of used current sinks.
+		//
+		// By default all 6 are enabled
+		// as noted by documentation
+		//
+		// Current driver sets the value
+		// explicit to 6 by default
+		//
+		// But documentation also says:
+		// > If a current sink is not used, connect its output to GND.
+		// > During the startup, KTZ8866 will
+		// > automatically detect and disable the corresponding channel
+		//
+		// So, difficult to guess actual hw configuration
+		// Let's skip this setting and hope it will work
+
+		// current-num-sinks = <6>;
+
+		// Time to reach new backlight value
+		kinetic,current-ramp-delay-ms = <128>; // unified with pipa and elish
+		// Time to ramp on turn on/off
+		kinetic,led-enable-ramp-delay-ms = <1>; // unified with pipa and elish
+
+		// The chip can drive LCD in addition
+		// to backlight and driver may enable it by
+		// `kinetic,enable-lcd-bias` setting
+		// but as seen by analysis above,
+		// LCD panel is likely driven by PM8150L
+
+		kinetic,enable-lcd-bias; // <--------------- check if this actually drives supply
+	};
+};
+
+&i2c11 {
+	status = "okay";
+
+	backlight1: backlight@11 {
+		compatible = "kinetic,ktz8866";
+		reg = <0x11>;
+
+		// Just reuse all settings from above
+
+		vddpos-supply = <&bl_vddpos_5p5>;
+		vddneg-supply = <&bl_vddneg_5p5>;
+
+		enable-gpios = <&tlmm 54 GPIO_ACTIVE_HIGH>;
+
+		// current-num-sinks = <6>;
+
+		kinetic,current-ramp-delay-ms = <128>;
+		kinetic,led-enable-ramp-delay-ms = <1>;
+
+		kinetic,enable-lcd-bias; // <--------------- check if this actually drives supply
+	};
+};
+
+/*
+ * END: --------------------------- Display ------------------------------------
+ */
+
