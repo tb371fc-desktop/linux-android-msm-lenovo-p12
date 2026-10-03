@@ -16,6 +16,14 @@
 	qcom,msm-id = <QCOM_ID_SM8250 0x20001>; /* SM8250 v2.1 */
 	qcom,board-id = <0 0>;
 
+	chosen {
+		/*
+		 * Until the device tree description is complete, rely on
+		 * bootloader-enabled clocks and do not disable them.
+		 */
+		bootargs = "clk_ignore_unused pd_ignore_unused";
+	};
+
 	vph_pwr: vph-pwr-regulator {
 		compatible = "regulator-fixed";
 		regulator-name = "vph_pwr";
