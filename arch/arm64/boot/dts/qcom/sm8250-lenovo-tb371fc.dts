@@ -1208,3 +1208,8 @@
  * END: --------------------------- Flash Storage ------------------------------
  */
 
+// These pins are likely related to an SPI issue that prevents the device from booting.
+// Used as a workaround.
+&tlmm {
+	gpio-reserved-ranges = <28 4>;
+};
