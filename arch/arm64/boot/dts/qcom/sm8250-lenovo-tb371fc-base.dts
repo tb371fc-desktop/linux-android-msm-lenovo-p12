@@ -1348,9 +1348,112 @@
  */
 
 &{/reserved-memory} {
+
+	/* Vendor-Added Regions */
+
 	bootlog_mem: boot_log_region@0 {
-		compatible = "removed-dma-pool";
-		no-map;
 		reg = <0x0 0xb0000000 0x0 0x80000>;
+		no-map;
+	};
+
+	/* Original regions from kernel 4.19 `kona.dtsi` */
+	reserved_xbl_uefi_log: res_xbl_uefi_log_region@80880000 {
+		reg = <0x0 0x80880000 0x0 0x14000>;
+		no-map;
+	};
+
+	cont_splash_memory: cont-splash@9c000000 {
+		reg = <0x0 0x9c000000 0x0 0x2300000>;
+		no-map;
+		label = "cont_splash_region";
+	};
+
+	/*
+	 * disp_rdump overlaps with cont_splash.
+	 * Keeping it commented out to avoid DT overlap errors.
+	 */
+
+	// disp_rdump_memory: disp_rdump_region@9c000000 {
+	// 	label = "disp_rdump_region";
+	//	no-map;
+	// 	reg = <0x0 0x9c000000 0x0 0x00800000>;
+	// };
+
+	dfps_data_memory: dfps_data_region@9e300000 {
+		label = "dfps_data_region";
+		reg = <0x0 0x9e300000 0x0 0x100000>;
+	};
+
+	dump_mem: mem_dump_region {
+		compatible = "shared-dma-pool";
+		alloc-ranges = <0x0 0x00000000 0x0 0xffffffff>;
+		reusable;
+		size = <0 0x2800000>;
+	};
+
+	sp_mem: sp_region {  /* SPSS-HLOS ION shared mem */
+		compatible = "shared-dma-pool";
+		alloc-ranges = <0x0 0x00000000 0x0 0xffffffff>;
+		reusable;
+		alignment = <0x0 0x400000>;
+		size = <0x0 0x1000000>;
+	};
+
+	user_contig_mem: user_contig_region {
+		compatible = "shared-dma-pool";
+		alloc-ranges = <0x0 0x00000000 0x0 0xffffffff>;
+		reusable;
+		alignment = <0x0 0x400000>;
+		size = <0x0 0x1000000>;
+	};
+
+	qseecom_mem: qseecom_region {
+		compatible = "shared-dma-pool";
+		alloc-ranges = <0x0 0x00000000 0x0 0xffffffff>;
+		reusable;
+		alignment = <0x0 0x400000>;
+		size = <0x0 0x1400000>;
+	};
+
+	qseecom_ta_mem: qseecom_ta_region {
+		compatible = "shared-dma-pool";
+		alloc-ranges = <0x0 0x00000000 0x0 0xffffffff>;
+		reusable;
+		alignment = <0x0 0x400000>;
+		size = <0x0 0x1000000>;
+	};
+
+	secure_display_memory: secure_display_region { /* Secure UI */
+		compatible = "shared-dma-pool";
+		alloc-ranges = <0x0 0x00000000 0x0 0xffffffff>;
+		reusable;
+		alignment = <0x0 0x400000>;
+		size = <0x0 0xA400000>;
+	};
+
+	cnss_wlan_mem: cnss_wlan_region {
+		compatible = "shared-dma-pool";
+		alloc-ranges = <0x0 0x00000000 0x0 0xffffffff>;
+		reusable;
+		alignment = <0x0 0x400000>;
+		size = <0x0 0x1400000>;
+	};
+
+	/* global autoconfigured region for contiguous allocations */
+	linux,cma {
+		compatible = "shared-dma-pool";
+		alloc-ranges = <0x0 0x00000000 0x0 0xffffffff>;
+		reusable;
+		alignment = <0x0 0x400000>;
+		size = <0x0 0x2000000>;
+		linux,cma-default;
+	};
+
+	mailbox_mem: mailbox_region {
+		compatible = "shared-dma-pool";
+		no-map;
+		alloc-ranges = <0x0 0x00000000 0x0 0xffffffff>;
+		alignment = <0x0 0x400000>;
+		size = <0x0 0x20000>;
 	};
 };
