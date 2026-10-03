@@ -1,0 +1,33 @@
+/dts-v1/;
+
+#include "sm8250-lenovo-tb371fc-framebuffer.dts"
+
+/*
+ * Additional setup to get serial output over UART
+ */
+
+/ {
+	chosen {
+		/*
+		 * Activates the earlycon, sets up the serial port, and keeps the framebuffer output.
+		 * Note that the bootloader prints to the same UART, and its speed is set to 115200
+		 */
+		bootargs = "earlycon=qcom_geni,0x00a90000 console=tty0 console=ttyMSM0,115200n8 clk_ignore_unused pd_ignore_unused";
+		stdout-path = "serial0:115200n8";
+	};
+
+	/* Maps UART for serial port usage */
+	aliases {
+		serial0 = &uart12;
+	};
+};
+
+/*
+ * On-board UART
+ * Test points layout: S4A_1P8 - BOOT - RX - TX (no label) - GND - DA
+ * UART output is on the unlabeled TX pin.
+ */
+&uart12 {
+	status = "okay";
+};
+
