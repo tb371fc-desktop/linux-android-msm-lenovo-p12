@@ -11,6 +11,11 @@
 	compatible = "lenovo,tb371fc", "qcom,sm8250";
 	qcom,board-id = <0 0>;
 
+
+	/* May be required for bootloader to select correct board */
+	qcom,msm-id = <QCOM_ID_SM8250 0x20001>; /* SM8250 v2.1 */
+	qcom,board-id = <0 0>;
+
 	vph_pwr: vph-pwr-regulator {
 		compatible = "regulator-fixed";
 		regulator-name = "vph_pwr";
