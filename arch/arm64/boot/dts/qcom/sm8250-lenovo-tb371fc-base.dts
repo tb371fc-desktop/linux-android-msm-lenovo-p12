@@ -17,19 +17,6 @@
 		regulator-min-microvolt = <3700000>;
 		regulator-max-microvolt = <3700000>;
 	};
-
-	vreg_s4a_1p8: pm8150-s4 {
-		compatible = "regulator-fixed";
-		regulator-name = "vreg_s4a_1p8";
-
-		regulator-min-microvolt = <1800000>;
-		regulator-max-microvolt = <1800000>;
-
-		regulator-always-on;
-		regulator-boot-on;
-
-		vin-supply = <&vph_pwr>;
-	};
 };
 
 &soc {
@@ -214,16 +201,62 @@
 
 		vdd-l2-l10-supply = <&vreg_bob>;
 
-		/* 
-		 * LDO10 was 3.0V in base, 3.312V in vendor.
-		 * Porting it exactly as the vendor used it.
-		 */
-		vreg_l10a_3p3: ldo10 {
-			regulator-name = "vreg_l10a_3p3";
-			regulator-min-microvolt = <3312000>;
-			regulator-max-microvolt = <3312000>;
+		vreg_s4a_1p8: smps4 {
+			regulator-name = "vreg_s4a_1p8";
+			regulator-min-microvolt = <1800000>;
+			regulator-max-microvolt = <1920000>;
 			regulator-initial-mode = <RPMH_REGULATOR_MODE_HPM>;
-			regulator-always-on;
+			regulator-allow-set-load;
+			regulator-allowed-modes = <RPMH_REGULATOR_MODE_LPM
+						   RPMH_REGULATOR_MODE_HPM>;
+		};
+
+		// ```
+		// rpmh-regulator-ldoa6 {
+		//	qcom,resource-name = "ldoa6"; <---------- LDO-A
+		// 	<...>
+		// 	L6A: pm8150_l6: regulator-pm8150-l6 {
+		// 		<...>
+		// 		regulator-min-microvolt = <1200000>;
+		// 		regulator-max-microvolt = <1200000>;
+		// 		<...>
+		// 		qcom,init-mode = <RPMH_REGULATOR_MODE_LPM>;
+		// 	};
+		// };
+		// ```
+		vreg_l6a_1p2: ldo6 {
+			regulator-name = "vreg_l6a_1p2";
+			regulator-min-microvolt = <1200000>;
+			regulator-max-microvolt = <1200000>;
+			regulator-initial-mode = <RPMH_REGULATOR_MODE_HPM>;
+			regulator-allow-set-load;
+			regulator-allowed-modes = <RPMH_REGULATOR_MODE_LPM
+						   RPMH_REGULATOR_MODE_HPM>;
+		};
+
+		// ```
+		// rpmh-regulator-ldoa17 {
+		//	qcom,resource-name = "ldoa17"; <---------- LDO-A
+		// 	<...>
+		// 	L17A: pm8150_l17: regulator-pm8150-l17 {
+		// 		<...>
+		// 		regulator-min-microvolt = <2496000>;
+		// 		regulator-max-microvolt = <3008000>;
+		// 		<...>
+		//		qcom,init-mode = <RPMH_REGULATOR_MODE_LPM>;
+		// 	};
+		// };
+		// ```
+
+		vreg_l17a_3p0: ldo17 {
+			regulator-name = "vreg_l17a_3p0";
+			// UFS using it requests `vcc-voltage-level = <2504000 2950000>;`
+			regulator-min-microvolt = <2504000>;
+			regulator-max-microvolt = <2950000>;
+			regulator-initial-mode = <RPMH_REGULATOR_MODE_HPM>;
+			regulator-allow-set-load;
+			regulator-allowed-modes = <RPMH_REGULATOR_MODE_LPM
+						   RPMH_REGULATOR_MODE_HPM>;
 		};
 	};
 
@@ -251,19 +284,81 @@
 			regulator-initial-mode = <RPMH_REGULATOR_MODE_AUTO>;
 		};
 
+		// ```
+		// rpmh-regulator-ldoc1 {
+		//	qcom,resource-name = "ldoc1"; <---------- LDO-C
+		// 	<...>
+		// 	L1C: pm8150a_l1: regulator-pm8150a-l1 {
+		// 		<...>
+		// 		regulator-min-microvolt = <1800000>;
+		// 		regulator-max-microvolt = <1800000>;
+		// 	};
+		// };
+		// ```
+		//
+		// ```
+		// &pm8150a_l1 {
+		// 	regulator-always-on;
+		// 	status = "ok";
+		// };
+		// ```
+
 		/* Porting LDO1 and LDO8 which were marked always-on */
-		vreg_l1a_1p8: ldo1 {
-			regulator-name = "vreg_l1a_1p8";
+		vreg_l1c_1p8: ldo1 {
+			regulator-name = "vreg_l1c_1p8";
 			regulator-min-microvolt = <1800000>;
 			regulator-max-microvolt = <1800000>;
-			regulator-initial-mode = <RPMH_REGULATOR_MODE_HPM>;
 			regulator-always-on;
 		};
 
-		vreg_l8a_1p8: ldo8 {
-			regulator-name = "vreg_l8a_1p8";
+		// ```
+		// rpmh-regulator-ldoc8 {
+		//	qcom,resource-name = "ldoc8"; <---------- LDO-C
+		// 	<...>
+		// 	L8C: pm8150a_l8: regulator-pm8150a-l8 {
+		// 		<...>
+		// 		regulator-min-microvolt = <1800000>;
+		// 		regulator-max-microvolt = <1800000>;
+		// 	};
+		// };
+		// ```
+		// ```
+		// &pm8150a_l8 {
+		// 	regulator-always-on;
+		// 	status = "ok";
+		// };
+		// ```
+
+		vreg_l8c_1p8: ldo8 {
+			regulator-name = "vreg_l8c_1p8";
 			regulator-min-microvolt = <1800000>;
 			regulator-max-microvolt = <1800000>;
+			regulator-always-on;
+		};
+
+		/*
+		 * LDO10 was 3.0V in base, 3.312V in vendor.
+		 * Porting it exactly as the vendor used it.
+		 */
+
+		// ```
+		// rpmh-regulator-ldoc10 {
+		//	qcom,resource-name = "ldoc10"; <---------- LDO-C
+		// 	<...>
+		// 	 &pm8150a_l10 {
+		// 		qcom,init-mode = <RPMH_REGULATOR_MODE_HPM>;
+		// 		<...>
+		// 		regulator-max-microvolt = <3312000>;
+		// 		regulator-min-microvolt = <3312000>;
+		// 		<...>
+		// 	};
+		// };
+		// ```
+
+		vreg_l10c_3p3: ldo10 {
+			regulator-name = "vreg_l10c_3p3";
+			regulator-min-microvolt = <3312000>;
+			regulator-max-microvolt = <3312000>;
 			regulator-initial-mode = <RPMH_REGULATOR_MODE_HPM>;
 			regulator-always-on;
 		};
