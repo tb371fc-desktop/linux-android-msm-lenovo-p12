@@ -1116,3 +1116,95 @@
  * END: --------------------------- Display ------------------------------------
  */
 
+/*
+ * START: ----------------------- Flash Storage --------------------------------
+ */
+
+/*
+ * Defined in `kona-qrd.dtsi`
+ *
+ * ```
+ *  &ufshc_mem {
+ * 	vdd-hba-fixed-regulator;
+ * 	vdd-hba-supply = <&ufs_phy_gdsc>;
+ *
+ * 	vcc-supply = <&pm8150_l17>;
+ * 	vccq-supply = <&pm8150_l6>;
+ * 	vccq2-supply = <&pm8150_s4>;
+ *
+ * 	vcc-max-microamp = <800000>;
+ * 	vccq-max-microamp = <800000>;
+ * 	vccq2-max-microamp = <800000>;
+ *
+ *	// From `ufshcd-pltfrm.txt`
+ * 	// > Specifies voltage levels for VCC supply.
+ *	// > Should be specified in pairs (min, max), units uV.
+ * 	vcc-voltage-level = <2504000 2950000>;
+ * 	vcc-low-voltage-sup;
+ *
+ * 	qcom,vddp-ref-clk-supply = <&pm8150_l6>;
+ * 	qcom,vddp-ref-clk-max-microamp = <100>;
+ *
+ * 	qcom,vccq-parent-supply = <&pm8150a_s8>;
+ * 	qcom,vccq-parent-max-microamp = <210000>;
+ *
+ * 	status = "ok";
+ * };
+ * ```
+ */
+&ufs_mem_hc {
+	status = "okay";
+
+	// Originally `L17A: pm8150_l17`, which is
+	// 2496000 - 3008000,
+	// but requested `vcc-voltage-level = <2504000 2950000>`
+	vcc-supply = <&vreg_l17a_3p0>;
+	vcc-max-microamp = <800000>;
+
+	// Originally `L6A: pm8150_l6`, which is
+	// exactly 1200000
+	vccq-supply = <&vreg_l6a_1p2>;
+	vccq-max-microamp = <800000>;
+
+	// Originally `S4A: pm8150_s4`, which is
+	// 1800000 - 1920000
+	vccq2-supply = <&vreg_s4a_1p8>;
+	vccq2-max-microamp = <800000>;
+};
+
+/*
+ * Defined in `kona-qrd.dtsi`
+ *
+ * ```
+ * &ufsphy_mem {
+ * 	compatible = "qcom,ufs-phy-qmp-v4";
+ *
+ * 	vdda-phy-always-on;
+ *
+ * 	vdda-phy-supply = <&pm8150_l5>;
+ * 	vdda-pll-supply = <&pm8150_l9>;
+ *
+ * 	vdda-phy-max-microamp = <89900>;
+ * 	vdda-pll-max-microamp = <18800>;
+ *
+ * 	status = "ok";
+ * };
+ * ```
+ */
+
+&ufs_mem_phy {
+	status = "okay";
+
+	// Originally `L5A: pm8150_l5`, which is
+	// exactly 880000
+	vdda-phy-supply = <&vreg_l5a_0p88>;
+
+	// Originally `L9A: pm8150_l9`, which is
+	// exactly 1200000
+	vdda-pll-supply = <&vreg_l9a_1p2>;
+};
+
+/*
+ * END: --------------------------- Flash Storage ------------------------------
+ */
+
