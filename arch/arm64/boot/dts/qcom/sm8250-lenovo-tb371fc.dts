@@ -1261,6 +1261,61 @@
  * END: --------------------------- Flash Storage ------------------------------
  */
 
+/*
+ * START: ------------------------------- USB ----------------------------------
+ */
+
+&usb_1 {
+	status = "okay";
+};
+
+&usb_1_dwc3 {
+	// Since the Type-C analog audio switch (FSA4480)
+	// and other Type-C logic are currently commented out,
+	// the kernel has nothing to actively notify the DWC3 controller
+	// to switch to peripheral mode when a cable is plugged in.
+
+	// dr_mode = "otg";
+	// usb-role-switch;
+	// role-switch-default-mode = "peripheral";
+
+	// Force the controller into peripheral mode
+	dr_mode = "peripheral";
+};
+
+&usb_1_hsphy {
+	status = "okay";
+
+	// Original: `vdd-supply = <&pm8150_l5>`
+	// exact 880000
+	vdda-pll-supply = <&vreg_l5a_0p88>;
+
+	// Original: `vdda18-supply = <&pm8150_l12>`
+	// exact 1800000
+	vdda18-supply = <&vreg_l12a_1p8>;
+
+	// Original: `vdda33-supply = <&pm8150_l2>`
+	// exact 3072000
+	vdda33-supply = <&vreg_l2a_3p1>;
+};
+
+&usb_1_qmpphy {
+	status = "okay";
+
+	// Original: `core-supply = <&pm8150_l9>`
+	// exact 1200000
+	vdda-phy-supply = <&vreg_l9a_1p2>;
+
+	// Original: `vdd-supply = <&pm8150_l18>`
+	// range 800000 to 920000
+	//
+	// Original request `qcom,vdd-voltage-level = <0 912000 912000>`
+	vdda-pll-supply = <&vreg_l18a_0p92>;
+};
+
+/*
+ * END: -------------------------------- USB -----------------------------------
+ */
 // These pins are likely related to an SPI issue that prevents the device from booting.
 // Used as a workaround.
 &tlmm {
