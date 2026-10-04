@@ -232,6 +232,37 @@
 		};
 
 		// ```
+		// rpmh-regulator-ldoa2 {
+		// 	compatible = "qcom,rpmh-vrm-regulator";
+		// 	qcom,resource-name = "ldoa2"; <---------- LDO-A
+		// 	qcom,regulator-type = "pmic5-ldo";
+		// 	qcom,supported-modes =
+		// 		<RPMH_REGULATOR_MODE_LPM
+		// 		RPMH_REGULATOR_MODE_HPM>;
+		// 	qcom,mode-threshold-currents = <0 10000>;
+		// 	L2A: pm8150_l2: regulator-pm8150-l2 {
+		// 		regulator-name = "pm8150_l2";
+		// 		qcom,set = <RPMH_REGULATOR_SET_ALL>;
+		// 		regulator-min-microvolt = <3072000>;
+		// 		regulator-max-microvolt = <3072000>;
+		// 		qcom,init-voltage = <3072000>;
+		// 		qcom,init-mode = <RPMH_REGULATOR_MODE_LPM>;
+		// 	};
+		// };
+		// ```
+
+		// usb_1_hsphy reference it
+		vreg_l2a_3p1: ldo2 {
+			regulator-name = "vreg_l2a_3p1";
+			regulator-min-microvolt = <3072000>;
+			regulator-max-microvolt = <3072000>;
+			regulator-initial-mode = <RPMH_REGULATOR_MODE_LPM>;
+			regulator-allow-set-load;
+			regulator-allowed-modes = <RPMH_REGULATOR_MODE_LPM
+						   RPMH_REGULATOR_MODE_HPM>;
+		};
+
+		// ```
 		// rpmh-regulator-ldoa6 {
 		//	qcom,resource-name = "ldoa6"; <---------- LDO-A
 		// 	<...>
@@ -249,6 +280,38 @@
 			regulator-min-microvolt = <1200000>;
 			regulator-max-microvolt = <1200000>;
 			regulator-initial-mode = <RPMH_REGULATOR_MODE_HPM>;
+			regulator-allow-set-load;
+			regulator-allowed-modes = <RPMH_REGULATOR_MODE_LPM
+						   RPMH_REGULATOR_MODE_HPM>;
+		};
+
+		// ```
+		// rpmh-regulator-ldoa12 {
+		// 	compatible = "qcom,rpmh-vrm-regulator";
+		// 	qcom,resource-name = "ldoa12"; <---------- LDO-A
+		// 	qcom,regulator-type = "pmic5-ldo";
+		// 	qcom,supported-modes =
+		// 		<RPMH_REGULATOR_MODE_LPM
+		// 		 RPMH_REGULATOR_MODE_HPM>;
+		// 	qcom,mode-threshold-currents = <0 10000>;
+		// 	L12A: pm8150_l12: regulator-pm8150-l12 {
+		// 		regulator-name = "pm8150_l12";
+		// 		qcom,set = <RPMH_REGULATOR_SET_ALL>;
+		// 		regulator-min-microvolt = <1800000>;
+		// 		regulator-max-microvolt = <1800000>;
+		// 		qcom,init-voltage = <1800000>;
+		// 		qcom,init-mode = <RPMH_REGULATOR_MODE_LPM>;
+		// 	};
+		//	<...>
+		// };
+		// ```
+
+		// usb_1_hsphy reference it
+		vreg_l12a_1p8: ldo12 {
+			regulator-name = "vreg_l12a_1p8";
+			regulator-min-microvolt = <1800000>;
+			regulator-max-microvolt = <1800000>;
+			regulator-initial-mode = <RPMH_REGULATOR_MODE_LPM>;
 			regulator-allow-set-load;
 			regulator-allowed-modes = <RPMH_REGULATOR_MODE_LPM
 						   RPMH_REGULATOR_MODE_HPM>;
@@ -274,6 +337,37 @@
 			regulator-min-microvolt = <2504000>;
 			regulator-max-microvolt = <2950000>;
 			regulator-initial-mode = <RPMH_REGULATOR_MODE_HPM>;
+			regulator-allow-set-load;
+			regulator-allowed-modes = <RPMH_REGULATOR_MODE_LPM
+						   RPMH_REGULATOR_MODE_HPM>;
+		};
+
+		// ```
+		// rpmh-regulator-ldoa18 {
+		// 	compatible = "qcom,rpmh-vrm-regulator";
+		// 	qcom,resource-name = "ldoa18"; <---------- LDO-A
+		// 	qcom,regulator-type = "pmic5-ldo";
+		// 	qcom,supported-modes =
+		// 		<RPMH_REGULATOR_MODE_LPM
+		// 		RPMH_REGULATOR_MODE_HPM>;
+		// 	qcom,mode-threshold-currents = <0 30000>;
+		// 	L18A: pm8150_l18: regulator-pm8150-l18 {
+		// 		regulator-name = "pm8150_l18";
+		// 		qcom,set = <RPMH_REGULATOR_SET_ALL>;
+		// 		regulator-min-microvolt = <800000>;
+		// 		regulator-max-microvolt = <920000>;
+		// 		qcom,init-voltage = <800000>;
+		// 		qcom,init-mode = <RPMH_REGULATOR_MODE_LPM>;
+		// 	};
+		// };
+		// ```
+
+		// usb_1_hsphy reference it
+		vreg_l18a_0p92: ldo18 {
+			regulator-name = "vreg_l18a_0p92";
+			regulator-min-microvolt = <800000>;
+			regulator-max-microvolt = <920000>;
+			regulator-initial-mode = <RPMH_REGULATOR_MODE_LPM>;
 			regulator-allow-set-load;
 			regulator-allowed-modes = <RPMH_REGULATOR_MODE_LPM
 						   RPMH_REGULATOR_MODE_HPM>;
