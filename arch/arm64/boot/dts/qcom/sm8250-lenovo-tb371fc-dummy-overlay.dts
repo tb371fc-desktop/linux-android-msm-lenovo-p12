@@ -1,0 +1,34 @@
+/dts-v1/;
+/plugin/;
+
+/*
+ * This dummy overlay structure is intended to trick the tb371fc bootloader
+ * and bypass any merging into the DTB embedded in `boot.img`.
+ *
+ * The compiled DTBO is intended to be put into the `dtbo` partition.
+ */
+
+/ {
+	model = "Lenovo Xiaoxin Pad Pro 12.7 TB371FC";
+	compatible = "qcom,kona-qrd", "qcom,kona", "qcom,qrd";
+	qcom,board-id = <11 0>;
+};
+
+/* External reference: points to an external label in base DTB.
+ * This triggers dtc to generate '__fixups__'.
+ * Note: base DTB must have a label or symbol for 'soc'
+ * (or replace 'soc' with any known symbol in your base DTB).
+ */
+&soc {
+	dummy_node: dummy-node {
+		status = "disabled";
+	};
+
+	dummy_consumer {
+		status = "disabled";
+		/* Local reference: points to 'dummy_node' within this overlay.
+		 * This triggers dtc to generate '__local_fixups__'.
+		 */
+		dummy-handle = <&dummy_node>;
+	};
+};
