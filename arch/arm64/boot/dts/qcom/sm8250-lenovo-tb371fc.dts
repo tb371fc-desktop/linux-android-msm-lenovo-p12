@@ -816,20 +816,73 @@
 
 &apps_rsc {
 	regulators-0 {
+		// ```
+		// rpmh-regulator-ldoa9 {
+		// 	compatible = "qcom,rpmh-vrm-regulator";
+		// 	qcom,resource-name = "ldoa9"; <---------- LDO-A
+		// 	qcom,regulator-type = "pmic5-ldo";
+		// 	qcom,supported-modes =
+		// 		<RPMH_REGULATOR_MODE_LPM
+		// 		RPMH_REGULATOR_MODE_HPM>;
+		// 	qcom,mode-threshold-currents = <0 30000>;
+		// 	proxy-supply = <&pm8150_l9>;
+		// 	L9A: pm8150_l9: regulator-pm8150-l9 {
+		// 		regulator-name = "pm8150_l9";
+		// 		qcom,set = <RPMH_REGULATOR_SET_ALL>;
+		// 		regulator-min-microvolt = <1200000>;
+		// 		regulator-max-microvolt = <1200000>;
+		// 		qcom,init-voltage = <1200000>;
+		// 		qcom,init-mode = <RPMH_REGULATOR_MODE_HPM>;
+		// 		qcom,proxy-consumer-enable;
+		// 		qcom,proxy-consumer-current = <100000>;
+		// 	};
+		// };
+		// ```
+
 		// mdss_dsi0 and mdss_dsi1 reference it
 		vreg_l9a_1p2: ldo9 {
 			regulator-name = "vreg_l9a_1p2";
 			regulator-min-microvolt = <1200000>;
 			regulator-max-microvolt = <1200000>;
 			regulator-initial-mode = <RPMH_REGULATOR_MODE_HPM>;
+			regulator-allow-set-load;
+			regulator-allowed-modes = <RPMH_REGULATOR_MODE_LPM
+						   RPMH_REGULATOR_MODE_HPM>;
 		};
 
-		// mdss_dsi0_phy and mdss_dsi1_phy referense it
+		// ```
+		// rpmh-regulator-ldoa5 {
+		// 	compatible = "qcom,rpmh-vrm-regulator";
+		// 	qcom,resource-name = "ldoa5"; <---------- LDO-A
+		// 	qcom,regulator-type = "pmic5-ldo";
+		// 	qcom,supported-modes =
+		// 		<RPMH_REGULATOR_MODE_LPM
+		// 		RPMH_REGULATOR_MODE_HPM>;
+		// 	qcom,mode-threshold-currents = <0 30000>;
+		// 	proxy-supply = <&pm8150_l5>;
+		// 	L5A: pm8150_l5: regulator-pm8150-l5 {
+		// 		regulator-name = "pm8150_l5";
+		// 		qcom,set = <RPMH_REGULATOR_SET_ALL>;
+		// 		regulator-min-microvolt = <880000>;
+		// 		regulator-max-microvolt = <880000>;
+		// 		qcom,init-voltage = <880000>;
+		// 		qcom,init-mode = <RPMH_REGULATOR_MODE_HPM>;
+		// 		qcom,proxy-consumer-enable;
+		// 		qcom,proxy-consumer-current = <100000>;
+		// 	};
+		//	<...>
+		// };
+		// ```
+
+		// mdss_dsi0_phy and mdss_dsi1_phy, and usb_1_hsphy reference it
 		vreg_l5a_0p88: ldo5 {
 			regulator-name = "vreg_l5a_0p88";
 			regulator-min-microvolt = <880000>;
 			regulator-max-microvolt = <880000>;
 			regulator-initial-mode = <RPMH_REGULATOR_MODE_HPM>;
+			regulator-allow-set-load;
+			regulator-allowed-modes = <RPMH_REGULATOR_MODE_LPM
+						   RPMH_REGULATOR_MODE_HPM>;
 		};
 	};
 };
