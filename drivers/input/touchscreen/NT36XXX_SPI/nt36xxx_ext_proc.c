@@ -1,8 +1,8 @@
 /*
- * Copyright (C) 2010 - 2022 Novatek, Inc.
+ * Copyright (C) 2024 Novatek, Inc.
  *
- * $Revision: 107378 $
- * $Date: 2022-10-26 09:56:01 +0800 (週三, 26 十月 2022) $
+ * $Revision: 142039 $
+ * $Date: 2024-06-07 09:48:12 +0800 (週五, 07 六月 2024) $
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -27,9 +27,8 @@
 #define NVT_BASELINE "nvt_baseline"
 #define NVT_RAW "nvt_raw"
 #define NVT_DIFF "nvt_diff"
-#define NVT_PEN_DIFF "nvt_pen_diff"
+#define NVT_UPDATE "nvt_update"
 
-#define GESTURE_CONTROL "gesture_control"
 #define NORMAL_MODE 0x00
 #define TEST_MODE_2 0x22
 #define HANDSHAKING_HOST_READY 0xBB
@@ -38,17 +37,13 @@
 
 static uint8_t xdata_tmp[8192] = {0};
 static int32_t xdata[4096] = {0};
-static int32_t xdata_pen_tip_x[256] = {0};
-static int32_t xdata_pen_tip_y[256] = {0};
-static int32_t xdata_pen_ring_x[256] = {0};
-static int32_t xdata_pen_ring_y[256] = {0};
 
 static struct proc_dir_entry *NVT_proc_fw_version_entry;
 static struct proc_dir_entry *NVT_proc_baseline_entry;
 static struct proc_dir_entry *NVT_proc_raw_entry;
 static struct proc_dir_entry *NVT_proc_diff_entry;
-static struct proc_dir_entry *NVT_proc_pen_diff_entry;
-static struct proc_dir_entry *NVT_gesture_entry;
+static struct proc_dir_entry *NVT_proc_fwupdate_entry;
+
 /*******************************************************
 Description:
 	Novatek touchscreen change mode function.
@@ -74,76 +69,6 @@ void nvt_change_mode(uint8_t mode)
 		buf[1] = HANDSHAKING_HOST_READY;
 		CTP_SPI_WRITE(ts->client, buf, 2);
 		usleep_range(20000, 20000);
-	}
-}
-
-int32_t nvt_set_pen_inband_mode_1(uint8_t freq_idx, uint8_t x_term)
-{
-	uint8_t buf[8] = {0};
-	int32_t i = 0;
-	const int32_t retry = 5;
-
-	//---set xdata index to EVENT BUF ADDR---
-	nvt_set_page(ts->mmap->EVENT_BUF_ADDR | EVENT_MAP_HOST_CMD);
-
-	//---set mode---
-	buf[0] = EVENT_MAP_HOST_CMD;
-	buf[1] = 0xC1;
-	buf[2] = 0x02;
-	buf[3] = freq_idx;
-	buf[4] = x_term;
-	CTP_SPI_WRITE(ts->client, buf, 5);
-
-	for (i = 0; i < retry; i++) {
-		buf[0] = EVENT_MAP_HOST_CMD;
-		buf[1] = 0xFF;
-		CTP_SPI_READ(ts->client, buf, 2);
-
-		if (buf[1] == 0x00)
-			break;
-
-		usleep_range(10000, 10000);
-	}
-
-	if (i >= retry) {
-		NVT_ERR("failed, i=%d, buf[1]=0x%02X\n", i, buf[1]);
-		return -1;
-	} else {
-		return 0;
-	}
-}
-
-int32_t nvt_set_pen_normal_mode(void)
-{
-	uint8_t buf[8] = {0};
-	int32_t i = 0;
-	const int32_t retry = 5;
-
-	//---set xdata index to EVENT BUF ADDR---
-	nvt_set_page(ts->mmap->EVENT_BUF_ADDR | EVENT_MAP_HOST_CMD);
-
-	//---set mode---
-	buf[0] = EVENT_MAP_HOST_CMD;
-	buf[1] = 0xC1;
-	buf[2] = 0x04;
-	CTP_SPI_WRITE(ts->client, buf, 3);
-
-	for (i = 0; i < retry; i++) {
-		buf[0] = EVENT_MAP_HOST_CMD;
-		buf[1] = 0xFF;
-		CTP_SPI_READ(ts->client, buf, 2);
-
-		if (buf[1] == 0x00)
-			break;
-
-		usleep_range(10000, 10000);
-	}
-
-	if (i >= retry) {
-		NVT_ERR("failed, i=%d, buf[1]=0x%02X\n", i, buf[1]);
-		return -1;
-	} else {
-		return 0;
 	}
 }
 
@@ -201,6 +126,8 @@ void nvt_read_mdata(uint32_t xdata_addr, uint32_t xdata_btn_addr)
 	data_len = ts->x_num * ts->y_num * 2;
 	residual_len = (head_addr + dummy_len + data_len) % XDATA_SECTOR_SIZE;
 
+	//printk("head_addr=0x%05X, dummy_len=0x%05X, data_len=0x%05X, residual_len=0x%05X\n", head_addr, dummy_len, data_len, residual_len);
+
 	//read xdata : step 1
 	for (i = 0; i < ((dummy_len + data_len) / XDATA_SECTOR_SIZE); i++) {
 		//---change xdata index---
@@ -215,8 +142,10 @@ void nvt_read_mdata(uint32_t xdata_addr, uint32_t xdata_btn_addr)
 			//---copy buf to xdata_tmp---
 			for (k = 0; k < transfer_len; k++) {
 				xdata_tmp[XDATA_SECTOR_SIZE * i + transfer_len * j + k] = buf[k + 1];
+				//printk("0x%02X, 0x%04X\n", buf[k+1], (XDATA_SECTOR_SIZE*i + transfer_len*j + k));
 			}
 		}
+		//printk("addr=0x%05X\n", (head_addr+XDATA_SECTOR_SIZE*i));
 	}
 
 	//read xdata : step2
@@ -233,8 +162,10 @@ void nvt_read_mdata(uint32_t xdata_addr, uint32_t xdata_btn_addr)
 			//---copy buf to xdata_tmp---
 			for (k = 0; k < transfer_len; k++) {
 				xdata_tmp[(dummy_len + data_len - residual_len) + transfer_len * j + k] = buf[k + 1];
+				//printk("0x%02X, 0x%04x\n", buf[k+1], ((dummy_len+data_len-residual_len) + transfer_len*j + k));
 			}
 		}
+		//printk("addr=0x%05X\n", (xdata_addr+data_len-residual_len));
 	}
 
 	//---remove dummy data and 2bytes-to-1data---
@@ -274,25 +205,6 @@ void nvt_get_mdata(int32_t *buf, uint8_t *m_x_num, uint8_t *m_y_num)
     *m_y_num = ts->y_num;
     memcpy(buf, xdata, ((ts->x_num * ts->y_num + TOUCH_KEY_NUM) * sizeof(int32_t)));
 }
-static ssize_t gesture_control_write(struct file *file, const char __user *buffer,
-		size_t count, loff_t *pos)
-{
-	char input;
-	if (count > 0) {
-		if (get_user(input, buffer))
-			return -EFAULT;
-		if (input != '1')
-			nvt_gesture_flag = false;
-		else
-			nvt_gesture_flag = true;
-	}
-	return count;
-}
-static int gesture_control_show(struct seq_file *m, void *v)
-{
-	seq_printf(m, "%d\n", nvt_gesture_flag);
-	return 0;
-}
 
 /*******************************************************
 Description:
@@ -324,6 +236,8 @@ void nvt_read_get_num_mdata(uint32_t xdata_addr, int32_t *buffer, uint32_t num)
 	data_len = num * 2;
 	residual_len = (head_addr + dummy_len + data_len) % XDATA_SECTOR_SIZE;
 
+	//printk("head_addr=0x%05X, dummy_len=0x%05X, data_len=0x%05X, residual_len=0x%05X\n", head_addr, dummy_len, data_len, residual_len);
+
 	//read xdata : step 1
 	for (i = 0; i < ((dummy_len + data_len) / XDATA_SECTOR_SIZE); i++) {
 		//---change xdata index---
@@ -338,8 +252,10 @@ void nvt_read_get_num_mdata(uint32_t xdata_addr, int32_t *buffer, uint32_t num)
 			//---copy buf to xdata_tmp---
 			for (k = 0; k < transfer_len; k++) {
 				xdata_tmp[XDATA_SECTOR_SIZE * i + transfer_len * j + k] = buf[k + 1];
+				//printk("0x%02X, 0x%04X\n", buf[k+1], (XDATA_SECTOR_SIZE*i + transfer_len*j + k));
 			}
 		}
+		//printk("addr=0x%05X\n", (head_addr+XDATA_SECTOR_SIZE*i));
 	}
 
 	//read xdata : step2
@@ -356,8 +272,10 @@ void nvt_read_get_num_mdata(uint32_t xdata_addr, int32_t *buffer, uint32_t num)
 			//---copy buf to xdata_tmp---
 			for (k = 0; k < transfer_len; k++) {
 				xdata_tmp[(dummy_len + data_len - residual_len) + transfer_len * j + k] = buf[k + 1];
+				//printk("0x%02X, 0x%04x\n", buf[k+1], ((dummy_len+data_len-residual_len) + transfer_len*j + k));
 			}
 		}
+		//printk("addr=0x%05X\n", (xdata_addr+data_len-residual_len));
 	}
 
 	//---remove dummy data and 2bytes-to-1data---
@@ -397,54 +315,17 @@ static int32_t c_show(struct seq_file *m, void *v)
 
 	for (i = 0; i < ts->y_num; i++) {
 		for (j = 0; j < ts->x_num; j++) {
-			seq_printf(m, "%5d, ", xdata[i * ts->x_num + j]);
+			seq_printf(m, "%6d,", xdata[i * ts->x_num + j]);
 		}
 		seq_puts(m, "\n");
 	}
 
 #if TOUCH_KEY_NUM > 0
 	for (i = 0; i < TOUCH_KEY_NUM; i++) {
-		seq_printf(m, "%5d, ", xdata[ts->x_num * ts->y_num + i]);
+		seq_printf(m, "%6d,", xdata[ts->x_num * ts->y_num + i]);
 	}
 	seq_puts(m, "\n");
 #endif
-
-	seq_printf(m, "\n\n");
-	return 0;
-}
-
-/*******************************************************
-Description:
-	Novatek pen 1D diff xdata sequence print show
-	function.
-
-return:
-	Executive outcomes. 0---succeed.
-*******************************************************/
-static int32_t c_pen_1d_diff_show(struct seq_file *m, void *v)
-{
-	int32_t i = 0;
-
-	seq_printf(m, "Tip X:\n");
-	for (i = 0; i < ts->x_num; i++) {
-		seq_printf(m, "%5d, ", xdata_pen_tip_x[i]);
-	}
-	seq_puts(m, "\n");
-	seq_printf(m, "Tip Y:\n");
-	for (i = 0; i < ts->y_num; i++) {
-		seq_printf(m, "%5d, ", xdata_pen_tip_y[i]);
-	}
-	seq_puts(m, "\n");
-	seq_printf(m, "Ring X:\n");
-	for (i = 0; i < ts->x_num; i++) {
-		seq_printf(m, "%5d, ", xdata_pen_ring_x[i]);
-	}
-	seq_puts(m, "\n");
-	seq_printf(m, "Ring Y:\n");
-	for (i = 0; i < ts->y_num; i++) {
-		seq_printf(m, "%5d, ", xdata_pen_ring_y[i]);
-	}
-	seq_puts(m, "\n");
 
 	seq_printf(m, "\n\n");
 	return 0;
@@ -505,13 +386,6 @@ const struct seq_operations nvt_seq_ops = {
 	.next   = c_next,
 	.stop   = c_stop,
 	.show   = c_show
-};
-
-const struct seq_operations nvt_pen_diff_seq_ops = {
-	.start  = c_start,
-	.next   = c_next,
-	.stop   = c_stop,
-	.show   = c_pen_1d_diff_show
 };
 
 /*******************************************************
@@ -760,106 +634,87 @@ static const struct file_operations nvt_diff_fops = {
 	.release = seq_release,
 };
 #endif
-static int32_t gesture_control_open(struct inode *inode, struct file *file)
-{
-	return single_open(file, gesture_control_show, NULL);
-}
-#ifdef HAVE_PROC_OPS
-static const struct proc_ops gesture_control_fops = {
-	.proc_open = gesture_control_open,
-	.proc_read = seq_read,
-	.proc_write = gesture_control_write,
-};
-#else
-static const struct file_operations gesture_control_fops = {
-	.owner = THIS_MODULE,
-	.open = gesture_control_open,
-	.read = seq_read,
-	.write = gesture_control_write,
-};
-#endif
 
 /*******************************************************
 Description:
-	Novatek touchscreen /proc/nvt_pen_diff open function.
-
+Description:
+	Novatek touchscreen /proc/nvt_update read function.
 return:
-	Executive outcomes. 0---succeed. negative---failed.
+	Executive outcomes. 0---succeed.
 *******************************************************/
-static int32_t nvt_pen_diff_open(struct inode *inode, struct file *file)
+#define FWTYPE_MP     (0)
+#define FWTYPE_Normal (1)
+static ssize_t nvt_fwupdate_read(struct file *file, char __user *buff, size_t count, loff_t *offp)
 {
+	uint8_t *str = NULL;
+	uint8_t fwtype = FWTYPE_Normal;
+	int32_t ret = 0;
+
+	NVT_LOG("++\n");
+
 	if (mutex_lock_interruptible(&ts->lock)) {
 		return -ERESTARTSYS;
 	}
 
-	NVT_LOG("++\n");
+	/* allocate buffer */
+	str = (uint8_t *)kzalloc((count), GFP_KERNEL);
+	if(str == NULL) {
+		NVT_ERR("kzalloc for buf failed!\n");
+		ret = -ENOMEM;
+		goto kzalloc_failed;
+	}
+
+	if (copy_from_user(str, buff, count)) {
+		NVT_ERR("copy from user error\n");
+		ret = -EFAULT;
+		goto out;
+	}
 
 #if NVT_TOUCH_ESD_PROTECT
+	/*
+	 * stop esd check work to avoid case that 0x77 report righ after here to enable esd check again
+	 * finally lead to trigger esd recovery bootloader reset
+	 */
+	cancel_delayed_work_sync(&nvt_esd_check_work);
 	nvt_esd_check_enable(false);
 #endif /* #if NVT_TOUCH_ESD_PROTECT */
 
-	if (nvt_set_pen_inband_mode_1(0xFF, 0x00)) {
-		mutex_unlock(&ts->lock);
-		return -EAGAIN;
+	fwtype = str[0]; 
+
+	NVT_LOG("fwtype is %d\n", fwtype);
+
+	
+	switch (fwtype) {
+		case FWTYPE_Normal:
+			nvt_update_firmware(BOOT_UPDATE_FIRMWARE_NAME);
+			break;
+		case FWTYPE_MP:
+			nvt_update_firmware(MP_UPDATE_FIRMWARE_NAME);
+			break;
+		default:
+			NVT_ERR("fwtype error\n");
 	}
-
-	if (nvt_check_fw_reset_state(RESET_STATE_NORMAL_RUN)) {
-		mutex_unlock(&ts->lock);
-		return -EAGAIN;
-	}
-
-	if (nvt_clear_fw_status()) {
-		mutex_unlock(&ts->lock);
-		return -EAGAIN;
-	}
-
-	nvt_change_mode(TEST_MODE_2);
-
-	if (nvt_check_fw_status()) {
-		mutex_unlock(&ts->lock);
-		return -EAGAIN;
-	}
-
-	if (nvt_get_fw_info()) {
-		mutex_unlock(&ts->lock);
-		return -EAGAIN;
-	}
-
-	nvt_read_get_num_mdata(ts->mmap->PEN_1D_DIFF_TIP_X_ADDR, xdata_pen_tip_x, ts->x_num);
-	nvt_read_get_num_mdata(ts->mmap->PEN_1D_DIFF_TIP_Y_ADDR, xdata_pen_tip_y, ts->y_num);
-	nvt_read_get_num_mdata(ts->mmap->PEN_1D_DIFF_RING_X_ADDR, xdata_pen_ring_x, ts->x_num);
-	nvt_read_get_num_mdata(ts->mmap->PEN_1D_DIFF_RING_Y_ADDR, xdata_pen_ring_y, ts->y_num);
-
-	nvt_change_mode(NORMAL_MODE);
-
-	nvt_set_pen_normal_mode();
-
-	nvt_check_fw_reset_state(RESET_STATE_NORMAL_RUN);
 
 	mutex_unlock(&ts->lock);
 
 	NVT_LOG("--\n");
 
-	return seq_open(file, &nvt_pen_diff_seq_ops);
+out:
+	kfree(str);
+kzalloc_failed:
+	return ret;
 }
 
 #ifdef HAVE_PROC_OPS
-static const struct proc_ops nvt_pen_diff_fops = {
-	.proc_open = nvt_pen_diff_open,
-	.proc_read = seq_read,
-	.proc_lseek = seq_lseek,
-	.proc_release = seq_release,
+static const struct proc_ops nvt_fwupdate_fops = {
+	.proc_read = nvt_fwupdate_read,
 };
 #else
-static const struct file_operations nvt_pen_diff_fops = {
+static const struct file_operations nvt_fwupdate_fops = {
 	.owner = THIS_MODULE,
-	.open = nvt_pen_diff_open,
-	.read = seq_read,
-	.llseek = seq_lseek,
-	.release = seq_release,
+	.read = nvt_fwupdate_read,		
 };
 #endif
-
 /*******************************************************
 Description:
 	Novatek touchscreen extra function proc. file node
@@ -902,23 +757,13 @@ int32_t nvt_extra_proc_init(void)
 		NVT_LOG("create proc/%s Succeeded!\n", NVT_DIFF);
 	}
 
-	NVT_gesture_entry = proc_create(GESTURE_CONTROL, 0444, NULL, &gesture_control_fops);
-	if (NVT_gesture_entry == NULL) {
-		NVT_ERR("create proc/%s Failed!\n", GESTURE_CONTROL);
+	NVT_proc_fwupdate_entry = proc_create(NVT_UPDATE, 0444, NULL,&nvt_fwupdate_fops);
+	if (NVT_proc_fwupdate_entry == NULL) {
+		NVT_ERR("create proc/nvt_update Failed!\n");
 		return -ENOMEM;
 	} else {
-		NVT_LOG("create proc/%s Succeeded!\n", GESTURE_CONTROL);
+		NVT_LOG("create proc/nvt_update Succeeded!\n");
 	}
-	if (ts->pen_support) {
-		NVT_proc_pen_diff_entry = proc_create(NVT_PEN_DIFF, 0444, NULL,&nvt_pen_diff_fops);
-		if (NVT_proc_pen_diff_entry == NULL) {
-			NVT_ERR("create proc/%s Failed!\n", NVT_PEN_DIFF);
-			return -ENOMEM;
-		} else {
-			NVT_LOG("create proc/%s Succeeded!\n", NVT_PEN_DIFF);
-		}
-	}
-
 	return 0;
 }
 
@@ -955,18 +800,10 @@ void nvt_extra_proc_deinit(void)
 		NVT_proc_diff_entry = NULL;
 		NVT_LOG("Removed /proc/%s\n", NVT_DIFF);
 	}
-
-	if (NVT_gesture_entry != NULL) {
-		remove_proc_entry(GESTURE_CONTROL, NULL);
-		NVT_gesture_entry = NULL;
-		NVT_LOG("Removed /proc/%s\n", GESTURE_CONTROL);
-	}
-	if (ts->pen_support) {
-		if (NVT_proc_pen_diff_entry != NULL) {
-			remove_proc_entry(NVT_PEN_DIFF, NULL);
-			NVT_proc_pen_diff_entry = NULL;
-			NVT_LOG("Removed /proc/%s\n", NVT_PEN_DIFF);
-		}
+	if (NVT_proc_fwupdate_entry != NULL) {
+		remove_proc_entry(NVT_UPDATE, NULL);
+		NVT_proc_fwupdate_entry = NULL;
+		NVT_LOG("Removed /proc/%s\n", NVT_UPDATE);
 	}
 }
 #endif

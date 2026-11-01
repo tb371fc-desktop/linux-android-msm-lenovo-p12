@@ -1,8 +1,8 @@
 /*
- * Copyright (C) 2010 - 2022 Novatek, Inc.
+ * Copyright (C) 2024 Novatek, Inc.
  *
- * $Revision: 107367 $
- * $Date: 2022-10-26 08:30:52 +0800 (週三, 26 十月 2022) $
+ * $Revision: 132694 $
+ * $Date: 2024-01-16 08:16:46 +0800 (週二, 16 一月 2024) $
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -15,6 +15,7 @@
  * more details.
  *
  */
+
 #include <linux/firmware.h>
 #include <linux/gpio.h>
 
@@ -37,16 +38,16 @@ struct nvt_ts_bin_map {
 
 static struct nvt_ts_bin_map *bin_map;
 
-extern void get_tp_info(void);
-
 static int32_t nvt_get_fw_need_write_size(const struct firmware *fw_entry)
 {
 	int32_t i = 0;
 	int32_t total_sectors_to_check = 0;
 
 	total_sectors_to_check = fw_entry->size / FLASH_SECTOR_SIZE;
+	/* printk("total_sectors_to_check = %d\n", total_sectors_to_check); */
 
 	for (i = total_sectors_to_check; i > 0; i--) {
+		/* printk("current end flag address checked = 0x%X\n", i * FLASH_SECTOR_SIZE - NVT_FLASH_END_FLAG_LEN); */
 		/* check if there is end flag "NVT" at the end of this sector */
 		if (strncmp(&fw_entry->data[i * FLASH_SECTOR_SIZE - NVT_FLASH_END_FLAG_LEN], "NVT", NVT_FLASH_END_FLAG_LEN) == 0) {
 			fw_need_write_size = i * FLASH_SECTOR_SIZE;
@@ -127,6 +128,7 @@ return:
 static uint32_t partition = 0;
 static uint8_t ilm_dlm_num = 2;
 static uint8_t cascade_2nd_header_info = 0;
+static uint8_t spi_dma_div_cnt_val = 0;
 static int32_t nvt_bin_header_parser(const u8 *fwdata, size_t fwsize)
 {
 	uint32_t list = 0;
@@ -152,6 +154,8 @@ static int32_t nvt_bin_header_parser(const u8 *fwdata, size_t fwsize)
 		}
 
 		info_sec_num = info_sec_num + 1; //next header section
+
+		spi_dma_div_cnt_val = fwdata[0x29] & 0x01;
 	} else {
 		pos = 0x30;	// info section start at 0x30 offset
 		while (pos < end) {
@@ -659,6 +663,29 @@ static void nvt_read_bld_hw_crc(void)
 	return;
 }
 
+static void nvt_spi_dma_setup(void)
+{
+	uint8_t buf[33] = {0};
+
+	if (ts->mmap->SPI_DMA_VAL_ADDR) {
+		nvt_set_page(bin_map[1].SRAM_addr);
+		buf[0] = bin_map[1].SRAM_addr & 0x7F;
+		CTP_SPI_WRITE(ts->client, buf, 33);
+
+		nvt_set_page(ts->mmap->SPI_DMA_VAL_ADDR);
+		buf[0] = ts->mmap->SPI_DMA_VAL_ADDR & 0x7F;
+		buf[1] = 0x35;
+		buf[2] = 0x32;
+		buf[3] = 0xAA;
+		buf[4] = 0x00;
+		CTP_SPI_WRITE(ts->client, buf, 5);
+
+		NVT_LOG("set spi dma val finish\n");
+	} else {
+		NVT_ERR("spi dma val addr is NULL\n");
+	}
+}
+
 /*******************************************************
 Description:
 	Novatek touchscreen Download_Firmware with HW CRC
@@ -684,6 +711,10 @@ static int32_t nvt_download_firmware_hw_crc(void)
 		/* Start to write firmware process */
 		if (cascade_2nd_header_info) {
 			/* for cascade */
+			if (spi_dma_div_cnt_val) {
+				nvt_spi_dma_setup();
+			}
+
 			nvt_tx_auto_copy_mode();
 
 			ret = nvt_write_firmware(fw_entry->data, fw_entry->size);
@@ -849,6 +880,9 @@ int32_t nvt_update_firmware(char *firmware_name)
 		NVT_ERR("nvt_get_fw_info failed. (%d)\n", ret);
 	}
 
+	/* write back customized command */
+	nvt_charge_mode(ts->charger_plugin);
+
 download_fail:
 	if (!IS_ERR_OR_NULL(bin_map)) {
 		kfree(bin_map);
@@ -873,7 +907,6 @@ void Boot_Update_Firmware(struct work_struct *work)
 {
 	mutex_lock(&ts->lock);
 	nvt_update_firmware(BOOT_UPDATE_FIRMWARE_NAME);
-	get_tp_info();
 	mutex_unlock(&ts->lock);
 }
 #endif /* BOOT_UPDATE_FIRMWARE */
