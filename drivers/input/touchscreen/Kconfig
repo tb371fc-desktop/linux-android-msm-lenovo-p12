@@ -1388,4 +1388,18 @@ config TOUCHSCREEN_HIMAX_HX83112B
 	  To compile this driver as a module, choose M here: the
 	  module will be called himax_hx83112b.
 
+config TOUCHSCREEN_NT36XXX
+	tristate "Novatek NT36xxx"
+	help
+	  Say Y here if you have a Novatek NT36xxx touchscreen connected
+	  to your system.
+
+	  If unsure, say N.
+
+if TOUCHSCREEN_NT36XXX
+
+source "drivers/input/touchscreen/NT36XXX_SPI/Kconfig"
+
+endif
+
 endif
