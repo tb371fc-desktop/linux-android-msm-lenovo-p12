@@ -1,0 +1,89 @@
+name: Build Kernel
+
+on:
+  push:
+    branches:
+      - tb371fc-desktop-linux-6.12
+  pull_request:
+  workflow_dispatch:
+
+jobs:
+  build-kernel:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Restore Clang Toolchain Cache
+        id: cache-clang
+        uses: actions/cache/restore@v4
+        with:
+          path: clang-android16
+          key: ${{ runner.os }}-clang-r547379
+
+      - name: Download Android 16 Clang
+        if: steps.cache-clang.outputs.cache-hit != 'true'
+        run: |
+          mkdir -p clang-android16/clang-r547379
+          wget -qO- https://android.googlesource.com/platform/prebuilts/clang/host/linux-x86/+archive/refs/heads/main/clang-r547379.tar.gz | tar -xz -C clang-android16/clang-r547379
+
+      - name: Save Clang Toolchain Cache
+        if: steps.cache-clang.outputs.cache-hit != 'true'
+        uses: actions/cache/save@v4
+        with:
+          path: clang-android16
+          key: ${{ runner.os }}-clang-r547379
+
+      - name: Install build dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y bison flex libdw-dev bc
+
+      - name: Set up ccache
+        uses: hendrikmuhs/ccache-action@v1
+        with:
+          max-size: "3G"
+
+      - name: Build Kernel and DTBs
+        run: |
+          export PATH="$GITHUB_WORKSPACE/clang-android16/clang-r547379/bin:$PATH"
+          
+          ARGS=(
+              V=0
+              O=out
+              CLANG_TRIPLE=aarch64-linux-gnu-
+              CROSS_COMPILE=aarch64-linux-gnu-
+              ARCH=arm64
+              LLVM=1
+              LLVM_IAS=1
+              CC="ccache clang"
+              LD=ld.lld
+              AR=llvm-ar
+              NM=llvm-nm
+              STRIP=llvm-strip
+              OBJCOPY=llvm-objcopy
+              OBJDUMP=llvm-objdump
+              READELF=llvm-readelf
+              HOSTCC=clang
+              HOSTCXX=clang++
+              HOSTLD=ld.lld
+          )
+          
+          make -j$(nproc) "${ARGS[@]}" vendor/gki_tb371fc_defconfig
+          make -j$(nproc) "${ARGS[@]}" Image
+          make -j$(nproc) "${ARGS[@]}" DTC_FLAGS="-@" dtbs
+
+      - name: Upload Kernel Image Artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: kernel-image
+          path: out/arch/arm64/boot/Image
+          if-no-files-found: error
+
+      - name: Upload DTB Artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: kernel-dtbs
+          path: out/arch/arm64/boot/dts/qcom/sm8250-lenovo-tb371fc-*
+          if-no-files-found: error
