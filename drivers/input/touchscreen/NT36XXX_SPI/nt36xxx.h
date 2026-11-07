@@ -134,7 +134,7 @@ extern const uint16_t gesture_key_array[];
 #define POINT_DATA_CHECKSUM 1
 #define POINT_DATA_CHECKSUM_LEN 65
 #define NVT_PM_WAIT_BUS_RESUME_COMPLETE 1
-#define FW_STATUS_REPORT 1
+#define FW_STATUS_REPORT 0
 #define NVT_CHARGER_NOTIFIER_CALLBACK 1
 
 //---Customerized command.---
