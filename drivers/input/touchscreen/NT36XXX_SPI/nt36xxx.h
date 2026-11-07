@@ -294,7 +294,6 @@ typedef enum {
 
 //---extern structures---
 extern struct nvt_ts_data *ts;
-extern struct proc_dir_entry *touch_info_dir;
 #if NVT_TOUCH_ESD_PROTECT
 extern struct delayed_work nvt_esd_check_work;
 #endif

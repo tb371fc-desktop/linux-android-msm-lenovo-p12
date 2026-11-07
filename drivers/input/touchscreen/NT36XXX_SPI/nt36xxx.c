@@ -43,10 +43,6 @@
 #include "../../../drivers/gpu/drm/mediatek/mediatek_v2/mtk_disp_notify.h"
 #endif
 
-#if IS_ENABLED(CONFIG_OEM_DEVINFO)
-#include "../../devinfo/dev_info.h"
-#endif
-
 #if NVT_TOUCH_ESD_PROTECT
 #include <linux/jiffies.h>
 #endif /* #if NVT_TOUCH_ESD_PROTECT */
@@ -928,73 +924,6 @@ int nvt_apply_gesture_type(void)
 	return ret;
 }
 
-#define USER_STR_BUFF		PAGE_SIZE
-static unsigned char g_user_buf[USER_STR_BUFF] = {0};
-static ssize_t tp_gesture_mode_read(struct file *filp, char __user *buff, size_t size, loff_t *pos)
-{
-	u32 len = 0;
-	NVT_LOG("++\n");
-
-	if (*pos != 0)
-		return 0;
-
-	if (mutex_lock_interruptible(&ts->lock)) {
-		return -ERESTARTSYS;
-	}
-	memset(g_user_buf, 0, USER_STR_BUFF * sizeof(unsigned char));
-	len += snprintf(g_user_buf + len, USER_STR_BUFF - len,
-						"%d\n", ts->gesture_tpye);
-	if (copy_to_user((char *)buff, g_user_buf, len))
-		NVT_ERR("Failed to copy data to user space\n");
-	*pos += len;
-
-	mutex_unlock(&ts->lock);
-	NVT_LOG("--\n");
-	return len;
-}
-
-extern int nvt_gesture_mode;
-extern int djn_gesture_mode;
-static ssize_t tp_gesture_mode_write(struct file *filp, const char *buff, size_t size, loff_t *pos)
-{
-	char cmd[256] = { 0 };
-
-	if ((size) > sizeof(cmd)) {
-		NVT_ERR("ERROR! input length is larger than local buffer\n");
-		return -1;
-	}
-	if (mutex_lock_interruptible(&ts->lock)) {
-		return -ERESTARTSYS;
-	}
-	if (buff != NULL) {
-		if (copy_from_user(cmd, buff, size)) {
-			NVT_ERR("Failed to copy data from user space\n");
-			size = -1;
-			goto out;
-		}
-	}
-
-	if (NVT_GESTURE_ON(cmd)) {
-		ts->gesture_tpye = GESTURE_SINGLE_DOUBLE;
-	} else if (NVT_DOUBLE_TAP_ON(cmd)) {
-		ts->gesture_tpye = GESTURE_DOUBLE;
-	} else if (NVT_SINGLE_TAP_ON(cmd)) {
-		ts->gesture_tpye = GESTURE_SINGLE;
-	} else if (NVT_GESTURE_OFF(cmd)) {
-		ts->gesture_tpye = GESTURE_DISABLE;
-	} else {
-		NVT_ERR("error cmd %s!\n", cmd);
-		goto out;
-	}
-	nvt_gesture_mode = (NVT_GESTURE_JUDGE(cmd)) ? 1:0;
-	djn_gesture_mode = (NVT_GESTURE_JUDGE(cmd)) ? 1:0;
-
-	NVT_LOG("ts_data->gesture_tpye = %d\n", ts->gesture_tpye);
-out:
-	mutex_unlock(&ts->lock);
-	return size;
-}
-
 #if LINUX_VERSION_CODE > KERNEL_VERSION(5, 6, 0)
 typedef struct {
 	char *name;
@@ -1010,48 +939,6 @@ typedef struct {
 	bool isCreated;
 } proc_node;
 #endif
-
-#if LINUX_VERSION_CODE > KERNEL_VERSION(5, 6, 0)
-static struct proc_ops proc_tp_gesture_mode_fops = {
-	.proc_read = tp_gesture_mode_read,
-	.proc_write = tp_gesture_mode_write,
-	.proc_lseek = default_llseek,
-};
-#else
-static struct file_operations proc_tp_gesture_mode_fops = {
-	.read = tp_gesture_mode_read,
-	.write = tp_gesture_mode_write,
-	.llseek = default_llseek,
-};
-#endif
-
-static proc_node tp_info_proc[] = {
-	{"tp_gesture_mode", NULL, &proc_tp_gesture_mode_fops, false},
-};
-
-static void touch_info_node_init(void)
-{
-	int i = 0;
-	if (!touch_info_dir) {
-		touch_info_dir = proc_mkdir("touch_info", NULL);
-	}
-	if (!touch_info_dir) {
-		NVT_ERR("Can not create touch_info_dir\n");
-		return;
-	}
-	NVT_LOG("touch_info_node_init\n");
-	for (; i < ARRAY_SIZE(tp_info_proc); i++) {
-		tp_info_proc[i].node = proc_create(tp_info_proc[i].name, 0644,
-					touch_info_dir, tp_info_proc[i].fops);
-		if (tp_info_proc[i].node == NULL) {
-			tp_info_proc[i].isCreated = false;
-			NVT_ERR("Failed to create %s under /proc\n", tp_info_proc[i].name);
-		} else {
-			tp_info_proc[i].isCreated = true;
-			NVT_LOG("Succeed to create %s under /proc\n", tp_info_proc[i].name);
-		}
-	}
-}
 
 int8_t nvt_charge_mode(bool plugin)
 {
@@ -2301,30 +2188,6 @@ static int nvt_ts_check_dt(struct device_node *np)
 }
 #endif
 
-#if IS_ENABLED(CONFIG_OEM_DEVINFO)
-static int nvt_get_tp_info(char *buf, void *arg0)
-{
-	int id = nt36672s_lcd_id | nt36528a_lcd_id;
-	if(id == 0x0093)
-        return sprintf(buf,
-        "%s-%s-%s-v0x%02x",
-        "DIJIN",
-        "NOVATEK",
-        "NT36672S",
-        ts->fw_ver);
-	else if(id == 0x0101)
-        return sprintf(buf,
-        "%s-%s-%s-v0x%02x",
-        "TIANMA",
-        "NOVATEK",
-        "NT36528A",
-        ts->fw_ver);
-	else
-        return sprintf(buf,
-        "unknown TP");
-}
-#endif
-
 /*******************************************************
 Description:
 	Novatek touchscreen driver probe function.
@@ -2360,7 +2223,6 @@ static int32_t nvt_ts_probe(struct spi_device *client)
 #endif
 
 	NVT_LOG("start\n");
-	touch_info_dir = NULL;
 
 	ts = (struct nvt_ts_data *)kzalloc(sizeof(struct nvt_ts_data), GFP_KERNEL);
 	if (ts == NULL) {
@@ -2700,7 +2562,6 @@ static int32_t nvt_ts_probe(struct spi_device *client)
 #endif
 #endif
 	ts->gesture_tpye = 0;
-	touch_info_node_init();
 	
 #if FW_STATUS_REPORT
 	/* clear nvt fw debug info */
@@ -2711,9 +2572,6 @@ static int32_t nvt_ts_probe(struct spi_device *client)
 	NVT_LOG("end\n");
 	nvt_irq_enable(true);
 
-#if IS_ENABLED(CONFIG_OEM_DEVINFO)
-	FULL_PRODUCT_DEVICE_CB(ID_TP, nvt_get_tp_info, NULL);
-#endif
 	return 0;
 
 #if IS_ENABLED(NVT_DRM_PANEL_NOTIFY)
