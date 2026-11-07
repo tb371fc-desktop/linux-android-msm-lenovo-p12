@@ -3165,8 +3165,8 @@ static const struct dev_pm_ops nvt_ts_dev_pm_ops = {
 #endif /* NVT_PM_WAIT_BUS_RESUME_COMPLETE */
 
 static const struct spi_device_id nvt_ts_id[] = {
-	{ NVT_SPI_NAME, 0 },
-	{ }
+    { "NVT-ts-spi", 0 },
+    { }
 };
 
 #ifdef CONFIG_OF
