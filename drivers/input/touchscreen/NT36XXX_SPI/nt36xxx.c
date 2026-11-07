@@ -2580,7 +2580,14 @@ static int32_t nvt_ts_probe(struct spi_device *client)
 #elif IS_ENABLED(NVT_MTK_DRM_NOTIFY)
     mtk_disp_notifier_unregister(&ts->disp_notifier);
 #endif
+#if IS_ENABLED(NVT_DRM_PANEL_NOTIFY) \
+ || IS_ENABLED(NVT_MSM_DRM_NOTIFY) \
+ || IS_ENABLED(NVT_FB_NOTIFY) \
+ || IS_ENABLED(NVT_EARLYSUSPEND_NOTIFY) \
+ || IS_ENABLED(NVT_QCOM_PANEL_EVENT_NOTIFY) \
+ || IS_ENABLED(NVT_MTK_DRM_NOTIFY)
 err_register_suspend_resume_failed:
+#endif
 #if NVT_TOUCH_EXT_PROC
 	nvt_extra_proc_deinit();
 err_extra_proc_init_failed:
@@ -2815,6 +2822,14 @@ static void nvt_ts_shutdown(struct spi_device *client)
 #endif
 }
 
+
+#if IS_ENABLED(NVT_DRM_PANEL_NOTIFY) \
+ || IS_ENABLED(NVT_MSM_DRM_NOTIFY) \
+ || IS_ENABLED(NVT_FB_NOTIFY) \
+ || IS_ENABLED(NVT_EARLYSUSPEND_NOTIFY) \
+ || IS_ENABLED(NVT_QCOM_PANEL_EVENT_NOTIFY) \
+ || IS_ENABLED(NVT_MTK_DRM_NOTIFY)
+
 /*******************************************************
 Description:
 	Novatek touchscreen driver suspend function.
@@ -2958,6 +2973,8 @@ static int32_t nvt_ts_resume(struct device *dev)
 
 	return 0;
 }
+
+#endif
 
 #if IS_ENABLED(NVT_DRM_PANEL_NOTIFY)
 static int nvt_drm_panel_notifier_callback(struct notifier_block *self, unsigned long event, void *data)
