@@ -923,6 +923,18 @@ CONFIG_I2C_QCOM_GENI=y
 CONFIG_REGULATOR_FIXED_VOLTAGE=y
 CONFIG_REGULATOR_QCOM_REFGEN=y
 
+# ------------------------------------------------------------------------------
+# Touchscreen
+# ------------------------------------------------------------------------------
+
+CONFIG_SPI_QCOM_GENI=y
+CONFIG_TOUCHSCREEN_NT36XXX=y
+CONFIG_TOUCHSCREEN_NT36xxx_HOSTDL_SPI=y
+
+# This feature could be enabled since the driver supports it,
+# but the kernel tree does not contain this configuration option.
+# CONFIG_QCOM_PANEL_EVENT_NOTIFIER=y
+
 # -----------
 # Experiments
 
