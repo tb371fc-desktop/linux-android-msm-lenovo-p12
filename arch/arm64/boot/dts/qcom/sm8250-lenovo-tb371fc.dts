@@ -1353,6 +1353,86 @@
 /*
  * END: -------------------------------- USB -----------------------------------
  */
+
+/*
+ * START: ------------------------------- Touchscreen ----------------------------------
+ */
+
+&qupv3_id_2 {
+	status = "okay";
+};
+
+&tlmm {
+	// Group 1: Reset Pin only
+	nvt_ts_reset_active: nvt_ts_reset_active {
+		mux {
+			pins = "gpio56";
+			function = "gpio";
+		};
+
+		config {
+			pins = "gpio56";
+			drive-strength = <2>;
+			bias-disable;
+		};
+	};
+
+	// Group 2: Interrupt Pin only
+	nvt_ts_irq_active: nvt_ts_irq_active {
+		mux {
+			pins = "gpio68";
+			function = "gpio";
+		};
+
+		config {
+			pins = "gpio68";
+			drive-strength = <2>;
+			bias-pull-down;
+		};
+	};
+};
+
+&spi14 {
+	status = "okay";
+
+	pinctrl-names = "default";
+	pinctrl-0 = <&qup_spi14_data_clk>, <&qup_spi14_cs>;
+
+	novatek@0 {
+		compatible = "novatek,NVT-ts-spi";
+		reg = <0>; //Same as CS ID
+		status = "okay";
+
+		pinctrl-names = "default";
+		pinctrl-0 = <&nvt_ts_reset_active>, <&nvt_ts_irq_active>;
+
+		// The driver ignores the gpio flags entirely
+		// ```
+		// ts->reset_gpio = of_get_named_gpio(np, "novatek,reset-gpio", 0);
+		// ts->irq_gpio = of_get_named_gpio(np, "novatek,irq-gpio", 0);
+		//
+		// gpio_request_one(ts->irq_gpio, GPIOF_IN, "NVT-int");
+		//
+		// request_threaded_irq(client->irq, NULL, nvt_ts_work_func, ts->int_trigger_type | IRQF_ONESHOT, NVT_SPI_NAME, ts);
+		// ```
+
+		novatek,reset-gpio = <&tlmm 56 GPIO_ACTIVE_LOW>;
+		novatek,irq-gpio = <&tlmm 68 GPIO_ACTIVE_HIGH>;
+
+		novatek,pen-support;
+
+		interrupt-parent = <&tlmm>;
+		interrupts = <68 IRQ_TYPE_EDGE_RISING>;
+
+		// Original 4.19 DTS sets it
+		spi-max-frequency = <9600000>;
+	};
+};
+
+/*
+ * END: -------------------------------- Touchscreen -----------------------------------
+ */
+
 // These pins are likely related to an SPI issue that prevents the device from booting.
 // Used as a workaround.
 &tlmm {
