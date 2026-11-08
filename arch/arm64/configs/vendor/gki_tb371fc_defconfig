@@ -935,6 +935,30 @@ CONFIG_TOUCHSCREEN_NT36xxx_HOSTDL_SPI=y
 # but the kernel tree does not contain this configuration option.
 # CONFIG_QCOM_PANEL_EVENT_NOTIFIER=y
 
+# ------------------------------------------------------------------------------
+# Wireless
+# ------------------------------------------------------------------------------
+
+CONFIG_FW_LOADER_COMPRESS=y
+CONFIG_RFKILL=y
+
+CONFIG_WLAN=y
+CONFIG_WLAN_VENDOR_ATH=y
+CONFIG_CFG80211=y
+CONFIG_MAC80211=y
+CONFIG_ATH11K=y
+CONFIG_ATH11K_PCI=y
+CONFIG_POWER_SEQUENCING_QCOM_WCN=y
+
+CONFIG_BT=y
+CONFIG_BT_RFCOMM=y
+CONFIG_BT_BNEP=y
+CONFIG_BT_HIDP=y
+CONFIG_BT_HCIUART=y
+CONFIG_BT_HCIUART_SERDEV=y
+CONFIG_BT_HCIUART_H4=y
+CONFIG_BT_QCA=y
+
 # -----------
 # Experiments
 

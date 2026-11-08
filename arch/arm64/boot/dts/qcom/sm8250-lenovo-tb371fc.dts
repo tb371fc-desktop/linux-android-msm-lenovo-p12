@@ -1277,25 +1277,46 @@
 		vdd-l6-l9-supply = <&vreg_s8c_1p35>;
 		vdd-l7-l12-l14-l15-supply = <&vreg_s5a_1p9>;
 
-		vreg_s5a_1p9: smps5 {
+		vreg_s5a_1p9: smps5 { // <----------- also a supply for wireless module `qca6390-pmu`
 			regulator-name = "vreg_s5a_1p9";
 			regulator-min-microvolt = <1900000>;
 			regulator-max-microvolt = <2040000>;
 			regulator-initial-mode = <RPMH_REGULATOR_MODE_HPM>;
 		};
 
-		vreg_s6a_0p95: smps6 {
+		vreg_s6a_0p95: smps6 { // <----------- also a supply for wireless module `qca6390-pmu`
 			regulator-name = "vreg_s6a_0p95";
-			regulator-min-microvolt = <600000>;
+
+			// Original DTS allows it to be 0.6 V.
+			//
+			// ```
+			// rpmh-regulator-smpa6 {
+			// 	<...>
+			// 	qcom,resource-name = "smpa6";
+			// 	S6A: pm8150_s6: regulator-pm8150-s6 {
+			// 		<...>
+			// 		regulator-min-microvolt = <600000>;
+			// 		regulator-max-microvolt = <1128000>;
+			// 		qcom,init-voltage = <600000>;
+			// 	};
+			// };
+			// ```
+			//
+			// However, `ldo5` wants 0.88 V (vreg_l5a_0p88).
+			// Also, `ldo18` wants 0.92 V (vreg_l18a_0p92).
+			//
+			// So, both will likely be happier with 0.95 V here.
+
+			regulator-min-microvolt = <950000>;
 			regulator-max-microvolt = <1128000>;
 			regulator-initial-mode = <RPMH_REGULATOR_MODE_HPM>;
 		};
 	};
 
 	regulators-1 {
-		vreg_s8c_1p35: smps8 {
+		vreg_s8c_1p35: smps8 { // <----------- also a supply for wireless module `qca6390-pmu`
 			regulator-name = "vreg_s8c_1p35";
-			regulator-min-microvolt = <1200000>;
+			regulator-min-microvolt = <1350000>; // bump from original `1200000` as well
 			regulator-max-microvolt = <1400000>;
 			regulator-initial-mode = <RPMH_REGULATOR_MODE_HPM>;
 		};
@@ -1431,6 +1452,416 @@
 
 /*
  * END: -------------------------------- Touchscreen -----------------------------------
+ */
+
+/*
+ * START: -------------------------------- Wireless -----------------------------------
+ *
+ * IC: QCA6390
+ *
+ * The original `wlan` node from the 4.19 downstream kernel has one override
+ * over standard `kona.dtsi`:
+ *
+ * ```
+ * &wlan {
+ * 	vdd-wlan-dig-supply = <&pm8150_s6>;
+ * };
+ * ```
+ *
+ * Base `kona.dtsi` definition:
+ *
+ * ```
+ * wlan: qcom,cnss-qca6390@b0000000 {
+ * 	compatible = "qcom,cnss-qca6390";
+ * 	<...>
+ * 	wlan-en-gpio = <&tlmm 20 0>;
+ * 	qcom,bt-en-gpio = <&tlmm 21 0>;
+ * 	qcom,sw-ctrl-gpio = <&tlmm 124 0>;
+ * 	pinctrl-names = "wlan_en_active", "wlan_en_sleep";
+ * 	pinctrl-0 = <&cnss_wlan_en_active>;
+ * 	pinctrl-1 = <&cnss_wlan_en_sleep>;
+ * 	<...>
+ * 	vdd-wlan-aon-supply = <&pm8150_s6>;
+ * 	qcom,vdd-wlan-aon-config = <950000 950000 0 0 1>;
+ * 	vdd-wlan-dig-supply = <&pm8009_s2>; // <--- overridden to `pm8150_s6`
+ * 	qcom,vdd-wlan-dig-config = <950000 952000 0 0 1>;
+ * 	vdd-wlan-io-supply = <&pm8150_s4>;
+ * 	qcom,vdd-wlan-io-config = <1800000 1800000 0 0 1>;
+ * 	vdd-wlan-rfa1-supply = <&pm8150_s5>;
+ * 	qcom,vdd-wlan-rfa1-config = <1900000 1900000 0 0 1>;
+ * 	vdd-wlan-rfa2-supply = <&pm8150a_s8>;
+ * 	qcom,vdd-wlan-rfa2-config = <1350000 1350000 0 0 1>;
+ * 	wlan-ant-switch-supply = <&pm8150a_l5>;
+ * 	qcom,wlan-ant-switch-config = <1800000 1800000 0 0 0>;
+ * 	<...>
+ * };
+ * ```
+ *
+ * Original `bluetooth` definition from the 4.19 downstream kernel:
+ *
+ * ```
+ * bluetooth: bt_qca6390 {
+ * 	compatible = "qca,qca6390";
+ * 	pinctrl-names = "default";
+ * 	pinctrl-0 = <&bt_en_sleep>;
+ * 	qca,bt-reset-gpio = <&tlmm 21 GPIO_ACTIVE_HIGH>;
+ * 	qca,bt-sw-ctrl-gpio = <&tlmm 124 GPIO_ACTIVE_HIGH>;
+ * 	qca,bt-vdd-aon-supply = <&pm8150_s6>;
+ * 	qca,bt-vdd-dig-supply = <&pm8150_s6>;
+ * 	qca,bt-vdd-rfa1-supply = <&pm8150_s5>;
+ * 	qca,bt-vdd-rfa2-supply = <&pm8150a_s8>;
+ * 	qca,bt-vdd-asd-supply = <&pm8150_l16>;
+ * 	qca,bt-vdd-aon-voltage-level = <950000 950000>;
+ * 	qca,bt-vdd-dig-voltage-level = <950000 952000>;
+ * 	qca,bt-vdd-rfa1-voltage-level = <1900000 1900000>;
+ * 	qca,bt-vdd-rfa2-voltage-level = <1350000 1350000>;
+ * 	qca,bt-vdd-asd-voltage-level = <3024000 3304000>;
+ * 	qca,bt-vdd-asd-current-level = <10000>;
+ * };
+ * ```
+ *
+ * Control GPIO pins summary:
+ * - wlan en:      GPIO 20
+ * - bt en/reset:  GPIO 21
+ * - sw ctrl:      GPIO 124
+ *
+ * Power supplies, PMIC IDs, and voltage ranges:
+ * - aon:          pm8150_s6,   PMIC-A,  950 mV
+ * - dig:          pm8150_s6,   PMIC-A,  950-952 mV
+ * - io:           pm8150_s4,   PMIC-A,  1.8 V
+ * - rfa1:         pm8150_s5,   PMIC-A,  1.9 V
+ * - rfa2:         pm8150a_s8,  PMIC-C,  1.35 V
+ * - ant-switch:   pm8150a_l5,  PMIC-C,  1.8 V
+ * - asd:          pm8150_l16,  PMIC-A,  3.024-3.304 V
+ */
+
+/ {
+	qca6390-pmu {
+		compatible = "qcom,qca6390-pmu";
+
+		pinctrl-names = "default", "sleep";
+		pinctrl-0 = <&wlan_en_default>, <&bt_en_default>;
+
+		// Driver manages pins via the GPIO framework
+		// pinctrl-1 = <&wlan_en_sleep>, <&bt_en_sleep>;
+
+		vddaon-supply = <&vreg_s6a_0p95>; // ok
+		vddpmu-supply = <&vreg_s6a_0p95>; // ???
+
+		vddrfa0p95-supply = <&vreg_s6a_0p95>; // ???
+
+		vddrfa1p3-supply = <&vreg_s8c_1p35>; // ???
+		vddrfa1p9-supply = <&vreg_s5a_1p9>; // ???
+
+		vddpcie1p3-supply = <&vreg_s8c_1p35>; // ???
+		vddpcie1p9-supply = <&vreg_s5a_1p9>; // ???
+
+		vddio-supply = <&vreg_s4a_1p8>; // ok
+
+		wlan-enable-gpios = <&tlmm 20 GPIO_ACTIVE_HIGH>;
+		bt-enable-gpios = <&tlmm 21 GPIO_ACTIVE_HIGH>;
+		swctrl-gpios = <&tlmm 124 GPIO_ACTIVE_HIGH>;
+
+		/*
+		 * AI note with descriptions
+		 *
+		 * ldo0: vreg_pmu_rfa_cmn (RF common)
+		 * ldo1: vreg_pmu_aon_0p59 (Always-on logic)
+		 * ldo2: vreg_pmu_wlcx_0p8 (WLAN core CX)
+		 * ldo3: vreg_pmu_wlmx_0p85 (WLAN memory MX)
+		 * ldo4: vreg_pmu_btcmx_0p85 (Bluetooth core MX)
+		 * ldo5: vreg_pmu_rfa_0p8 (RFA 0.8V)
+		 * ldo6: vreg_pmu_rfa_1p2 (RFA 1.2V)
+		 * ldo7: vreg_pmu_rfa_1p7 (RFA 1.7V)
+		 * ldo8: vreg_pmu_pcie_0p9 (PCIe 0.9V)
+		 * ldo9: vreg_pmu_pcie_1p8 (PCIe 1.8V)
+		 */
+
+		regulators {
+			vreg_pmu_rfa_cmn: ldo0 {
+				regulator-name = "vreg_pmu_rfa_cmn";
+			};
+
+			vreg_pmu_aon_0p59: ldo1 {
+				regulator-name = "vreg_pmu_aon_0p59";
+			};
+
+			vreg_pmu_wlcx_0p8: ldo2 {
+				regulator-name = "vreg_pmu_wlcx_0p8";
+			};
+
+			vreg_pmu_wlmx_0p85: ldo3 {
+				regulator-name = "vreg_pmu_wlmx_0p85";
+			};
+
+			vreg_pmu_btcmx_0p85: ldo4 {
+				regulator-name = "vreg_pmu_btcmx_0p85";
+			};
+
+			vreg_pmu_rfa_0p8: ldo5 {
+				regulator-name = "vreg_pmu_rfa_0p8";
+			};
+
+			vreg_pmu_rfa_1p2: ldo6 {
+				regulator-name = "vreg_pmu_rfa_1p2";
+			};
+
+			vreg_pmu_rfa_1p7: ldo7 {
+				regulator-name = "vreg_pmu_rfa_1p7";
+			};
+
+			vreg_pmu_pcie_0p9: ldo8 {
+				regulator-name = "vreg_pmu_pcie_0p9";
+			};
+
+			vreg_pmu_pcie_1p8: ldo9 {
+				regulator-name = "vreg_pmu_pcie_1p8";
+			};
+		};
+	};
+};
+
+/ {
+	aliases {
+		serial1 = &uart6;
+	};
+};
+
+&uart6 {
+	status = "okay";
+
+	bluetooth {
+		compatible = "qcom,qca6390-bt";
+
+		/* Fallback BD address if not programmed or provided by bootloader */
+		local-bd-address = [00 00 00 00 00 00]; /* or vendor-assigned MAC / nvmem-cells */
+
+		vddrfacmn-supply = <&vreg_pmu_rfa_cmn>;
+
+		vddaon-supply = <&vreg_pmu_aon_0p59>;
+
+		vddbtcmx-supply = <&vreg_pmu_btcmx_0p85>;
+
+		vddrfa0p8-supply = <&vreg_pmu_rfa_0p8>;
+
+		vddrfa1p2-supply = <&vreg_pmu_rfa_1p2>;
+		vddrfa1p7-supply = <&vreg_pmu_rfa_1p7>;
+	};
+};
+
+/*
+ * Original definition for supplies from 4.19 kernel
+ * ```
+ * pcie0: qcom,pcie@1c00000 {
+ * 	<...>
+ * 	vreg-1p8-supply = <&pm8150_l9>;
+ * 	vreg-0p9-supply = <&pm8150_l5>;
+ * 	<...>
+ * };
+ * ```
+ */
+
+&pcie0 {
+	status = "okay";
+};
+
+&pcie0_phy {
+	vdda-phy-supply = <&vreg_l5a_0p88>;
+	vdda-pll-supply = <&vreg_l9a_1p2>;
+	status = "okay";
+};
+
+&pcieport0 {
+	wifi@0 {
+		compatible = "pci17cb,1101"; /* 17cb = Qualcomm, 1101 = QCA6390 PCI ID */
+		reg = <0x10000 0x0 0x0 0x0 0x0>;
+
+		/* Calibration and board variant string for ath11k */
+		// qcom,calibration-variant = "SM8250_Board_Name"; // ???
+
+		/* Supply mapping linked back to the PMU */
+
+		vddrfacmn-supply = <&vreg_pmu_rfa_cmn>;
+
+		vddaon-supply = <&vreg_pmu_aon_0p59>;
+
+		vddwlcx-supply = <&vreg_pmu_wlcx_0p8>;
+		vddwlmx-supply = <&vreg_pmu_wlmx_0p85>;
+
+		vddrfa0p8-supply = <&vreg_pmu_rfa_0p8>;
+
+		vddrfa1p2-supply = <&vreg_pmu_rfa_1p2>;
+		vddrfa1p7-supply = <&vreg_pmu_rfa_1p7>;
+
+		vddpcie0p9-supply = <&vreg_pmu_pcie_0p9>;
+		vddpcie1p8-supply = <&vreg_pmu_pcie_1p8>;
+	};
+};
+
+&tlmm {
+	/* Original vendor DTS definition:
+	 *
+	 * cnss_pins {
+	 * 	cnss_wlan_en_active: cnss_wlan_en_active {
+	 * 		mux {
+	 * 			pins = "gpio20";
+	 * 			function = "gpio";
+	 * 		};
+	 *
+	 * 		config {
+	 * 			pins = "gpio20";
+	 * 			drive-strength = <16>;
+	 * 			output-high;
+	 * 			bias-pull-up;
+	 * 		};
+	 * 	};
+	 *
+	 * 	cnss_wlan_en_sleep: cnss_wlan_en_sleep {
+	 * 		mux {
+	 * 			pins = "gpio20";
+	 * 			function = "gpio";
+	 * 		};
+	 *
+	 * 		config {
+	 * 			pins = "gpio20";
+	 * 			drive-strength = <2>;
+	 * 			output-low;
+	 * 			bias-pull-down;
+	 * 		};
+	 * 	};
+	 * };
+	 */
+
+	wlan_en_default: wlan-en-default-state {
+		pins = "gpio20";
+		function = "gpio";
+		drive-strength = <16>;
+		// output-high;
+		// bias-pull-up;
+		bias-pull-down;
+	};
+
+	// wlan_en_sleep: wlan-en-sleep-state {
+	// 	pins = "gpio20";
+	// 	function = "gpio";
+	// 	drive-strength = <2>;
+	// 	output-low;
+	// 	bias-pull-down;
+	// };
+
+	/* Original vendor DTS definition:
+	 *
+	 * bt_en_sleep: bt_en_sleep {
+	 * 	mux {
+	 * 		pins = "gpio21";
+	 * 		function = "gpio";
+	 * 	};
+	 *
+	 * 	config {
+	 * 		pins = "gpio21";
+	 * 		drive-strength = <2>;
+	 * 		output-low;
+	 * 		bias-pull-down;
+	 * 	};
+	 * };
+	 *
+	 * Although the vendor DTS does not define an active (default) state,
+	 * configure one mirroring the WLAN active pin configuration.
+	 */
+
+	bt_en_default: bt-en-default-state {
+		pins = "gpio21";
+		function = "gpio";
+		drive-strength = <2>;
+		// output-high;
+		// bias-pull-up;
+		bias-pull-down;
+	};
+
+	// bt_en_sleep: bt-en-sleep-state {
+	// 	pins = "gpio21";
+	// 	function = "gpio";
+	// 	drive-strength = <2>;
+	// 	output-low;
+	// 	bias-pull-down;
+	// };
+
+	/*
+	 * The only reference in the vendor DTS for SW_CTRL is:
+	 *
+	 * ```
+	 *   qca,bt-sw-ctrl-gpio = <&tlmm 124 GPIO_ACTIVE_HIGH>;
+	 * ```
+	 *
+	 * No dedicated TLMM pinctrl node was defined in downstream.
+	 *
+	 * Additionally, the 6.12 driver treats this pin as an input:
+	 *
+	 * ```
+	 *   static int qca_serdev_probe(struct serdev_device *serdev)
+	 *   {
+	 *   	<...>
+	 *   	switch (qcadev->btsoc_type) {
+	 *   	<...>
+	 *   	case QCA_WCN3998:
+	 *   		<...>
+	 *   		qcadev->sw_ctrl = devm_gpiod_get_optional(&serdev->dev, "swctrl",
+	 *   					       GPIOD_IN);
+	 *   		if (IS_ERR(qcadev->sw_ctrl) &&
+	 *   		    (data->soc_type == QCA_WCN6750 ||
+	 *   		     data->soc_type == QCA_WCN6855 ||
+	 *   		     data->soc_type == QCA_WCN7850)) {
+	 *   			dev_err(&serdev->dev, "failed to acquire SW_CTRL gpio\n");
+	 *   			return PTR_ERR(qcadev->sw_ctrl);
+	 *   		}
+	 *   		<...>
+	 *   	<...>
+	 *   };
+	 * ```
+	 *
+	 * ```
+	 *   static int qca_regulator_init(struct hci_uart *hu)
+	 *   {
+	 *   	<...>
+	 *   	/* For wcn6750 need to enable gpio bt_en * /
+	 *   	if (qcadev->bt_en) {
+	 *   		<...>
+	 *   		if (qcadev->sw_ctrl) {
+	 *   			sw_ctrl_state = gpiod_get_value_cansleep(qcadev->sw_ctrl);
+	 *   			bt_dev_dbg(hu->hdev, "SW_CTRL is %d", sw_ctrl_state);
+	 *   		}
+	 *   	}
+	 *   	<...>
+	 *   };
+	 * ```
+	 *
+	 * Moreover, it is likely unused for QCA6390.
+	 * Define a safe default configuration (input with pull-down).
+	 */
+
+	swctrl_state: swctrl-state {
+		pins = "gpio124";
+		function = "gpio";
+		input-enable;
+		bias-pull-down;
+	};
+};
+
+&apps_rsc {
+	regulators-1 {
+		vreg_l5c_1p8: ldo5 {
+			regulator-name = "vreg_l5c_1p8";
+			regulator-min-microvolt = <1800000>;
+			regulator-max-microvolt = <2800000>;
+			qcom,init-voltage = <1800000>;
+			qcom,init-mode = <RPMH_REGULATOR_MODE_LPM>;
+			regulator-always-on;
+		};
+	};
+};
+
+/*
+ * END: -------------------------------- Wireless -----------------------------------
  */
 
 // These pins are likely related to an SPI issue that prevents the device from booting.
